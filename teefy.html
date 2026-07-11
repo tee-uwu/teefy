@@ -1,0 +1,3035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Retro & Vinyl Audio Player</title>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js">
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Black+Ops+One&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        /* ── ROOT & RESET ── */
+        :root {
+            --bg-neu: #e0e5ec;
+            --shadow-light: #ffffff;
+            --shadow-dark: #a3b1c6;
+            --text-main: rgba(0, 0, 0, 0.85);
+            --text-muted: rgba(0, 0, 0, 0.55);
+            --accent-glow: rgba(100, 150, 255, 0.4);
+            --glass-overlay: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.35);
+            --glass-shine: rgba(255, 255, 255, 0.7);
+            --cassette-blue: #54779d;
+            --cassette-blue-dark: #3a5675;
+            --cassette-blue-light: #6a90bd;
+            --cassette-black: #1a1c1e;
+            --lcd-green: #4ade80;
+            --turntable-size: 320px;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            min-height: 100dvh;
+            user-select: none;
+            transition: background-color 1s ease, color 0.8s ease;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body.theme-vinyl {
+            background-color: var(--bg-neu);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+        }
+
+        body.theme-cassette {
+            background:
+                linear-gradient(to bottom, #1a1a24 0%, #2a2a3a 50%, #4a2545 100%),
+                repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(255, 0, 255, 0.1) 20px),
+                repeating-linear-gradient(90deg, transparent, transparent 19px, rgba(255, 0, 255, 0.1) 20px);
+            background-blend-mode: screen;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* ── APP WRAPPER ── */
+        .app-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 12px 0;
+            z-index: 10;
+            box-sizing: border-box;
+        }
+
+        /* ── THEME TOGGLE ── */
+        .theme-toggle-container {
+            margin-bottom: 24px;
+            display: flex;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 4px;
+            border-radius: 30px;
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.1), inset -2px -2px 5px rgba(255, 255, 255, 0.5);
+            z-index: 50;
+            flex-shrink: 0;
+            width: auto;
+        }
+
+        body.theme-cassette .theme-toggle-container {
+            background: rgba(0, 0, 0, 0.3);
+            box-shadow: inset 2px 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .theme-btn {
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.7rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: transparent;
+            color: var(--text-muted);
+            touch-action: manipulation;
+        }
+
+        @media (min-width: 420px) {
+            .theme-btn {
+                padding: 8px 24px;
+                font-size: 0.85rem;
+            }
+        }
+
+        body.theme-vinyl .theme-btn.vinyl-active {
+            background: var(--bg-neu);
+            color: var(--text-main);
+            box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+        }
+
+        body.theme-cassette .theme-btn.cassette-active {
+            background: linear-gradient(145deg, #ff007f, #7928ca);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        /* ── VIEWS ── */
+        .view {
+            width: 100%;
+            min-width: 0;
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease, visibility 0.4s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #playerSection {
+            width: 100%;
+            min-width: 0;
+        }
+
+        body.theme-vinyl .view.vinyl-view,
+        body.theme-cassette .view.cassette-view {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%);
+            position: relative;
+            top: 0;
+        }
+
+        /* ── FILE INPUT ── */
+        input[type="file"] {
+            display: none;
+        }
+
+        /* ── MARQUEE ── */
+        .marquee-wrapper {
+            width: 100%;
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+        }
+        .marquee-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: marquee 8s linear infinite;
+        }
+        @keyframes marquee {
+            0% {
+                transform: translateX(0);
+            }
+            100% {
+                transform: translateX(-100%);
+            }
+        }
+
+        /* ── VINYL (NEUMORPHISM) ── */
+        .neu-flat {
+            background: var(--bg-neu);
+            box-shadow: 9px 9px 16px var(--shadow-dark),
+                -9px -9px 16px var(--shadow-light);
+            transition: background 1s ease, box-shadow 0.1s ease, transform 0.1s ease;
+        }
+
+        .neu-pressed {
+            background: var(--bg-neu);
+            box-shadow: inset 6px 6px 10px var(--shadow-dark),
+                inset -6px -6px 10px var(--shadow-light);
+            transition: background 1s ease, box-shadow 0.1s ease, transform 0.1s ease;
+        }
+
+        .player-container {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            border-radius: 32px;
+            padding: 24px 16px 28px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            position: relative;
+        }
+
+        @media (min-width: 420px) {
+            .player-container {
+                padding: 40px 30px;
+                gap: 35px;
+                border-radius: 40px;
+            }
+        }
+
+        /* ── TURNTABLE ── */
+        .turntable-area {
+            position: relative;
+            width: min(var(--turntable-size), 82vw);
+            aspect-ratio: 1/1;
+            max-width: 100%;
+            flex-shrink: 0;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 8px 8px 15px var(--shadow-dark),
+                inset -8px -8px 15px var(--shadow-light);
+            transition: box-shadow 1s ease;
+            margin: 0 auto;
+            touch-action: manipulation;
+            cursor: pointer;
+        }
+
+        @media (min-width: 420px) {
+            .turntable-area {
+                width: min(var(--turntable-size), 85vw);
+            }
+        }
+
+        .vinyl-record {
+            width: 88%;
+            height: 88%;
+            border-radius: 50%;
+            background: conic-gradient(#111 0deg, #333 45deg, #111 90deg, #333 135deg,
+                    #111 180deg, #333 225deg, #111 270deg, #333 315deg, #111 360deg);
+            box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(0, 0, 0, 1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+            touch-action: manipulation;
+            cursor: pointer;
+        }
+
+        .vinyl-record::before {
+            content: '';
+            position: absolute;
+            width: 95%;
+            height: 95%;
+            border-radius: 50%;
+            background: repeating-radial-gradient(circle, transparent 0px, transparent 3px, rgba(0, 0, 0, 0.3) 4px, transparent 5px);
+            pointer-events: none;
+        }
+
+        .vinyl-center {
+            width: 38%;
+            height: 38%;
+            border-radius: 50%;
+            background-color: #fff;
+            border: 4px solid #111;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+        }
+
+        .vinyl-center img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.3s;
+        }
+
+        .spindle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 14px;
+            height: 14px;
+            background: radial-gradient(circle, #ddd, #888);
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            z-index: 20;
+        }
+
+        /* ── TONEARM ── */
+        .tonearm-assembly {
+            position: absolute;
+            top: 2%;
+            right: 2%;
+            width: 18%;
+            height: 70%;
+            z-index: 15;
+            transform-origin: 50% 30px;
+            transform: rotate(-25deg);
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            filter: drop-shadow(10px 15px 10px rgba(0, 0, 0, 0.3));
+        }
+        .tonearm-base {
+            width: 50%;
+            height: 50px;
+            background: #d1d9e6;
+            border-radius: 50%;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: inset 2px 2px 5px #fff, inset -2px -2px 5px #a3b1c6, 3px 3px 8px rgba(0, 0, 0, 0.2);
+        }
+        .tonearm-rod {
+            width: 6px;
+            height: 85%;
+            background: linear-gradient(to right, #ccc, #fff, #999);
+            position: absolute;
+            top: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 4px;
+            box-shadow: 2px 0 3px rgba(0, 0, 0, 0.2);
+        }
+        .tonearm-headshell {
+            width: 18px;
+            height: 32px;
+            background: #e0e5ec;
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%) rotate(25deg);
+            transform-origin: top center;
+            border-radius: 4px;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+            border: 1px solid #c0c8d6;
+        }
+
+        @media (min-width: 420px) {
+            .tonearm-assembly {
+                width: 80px;
+                height: 70%;
+            }
+            .tonearm-base {
+                width: 50px;
+                height: 50px;
+            }
+            .tonearm-rod {
+                width: 8px;
+            }
+            .tonearm-headshell {
+                width: 22px;
+                height: 40px;
+            }
+        }
+
+        .is-playing-state .vinyl-record {
+            animation: spin 4s linear infinite;
+        }
+
+        /* ── PROGRESS BAR ── */
+        .progress-bar-bg {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: var(--bg-neu);
+            box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+            margin-bottom: 12px;
+            transition: box-shadow 1s ease, background 1s ease;
+            touch-action: manipulation;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #6b8cce, #8aaddf);
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(107, 140, 206, 0.5);
+            pointer-events: none;
+        }
+
+        /* ── BUTTONS ── */
+        .btn {
+            border: none;
+            outline: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-main);
+            touch-action: manipulation;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .btn svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+        .btn-circle {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+        }
+
+        @media (min-width: 420px) {
+            .btn svg {
+                width: 22px;
+                height: 22px;
+            }
+            .btn-circle {
+                width: 50px;
+                height: 50px;
+            }
+        }
+
+        /* ── VOLUME SLIDER ── */
+        .volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: var(--bg-neu);
+            border-radius: 3px;
+            box-shadow: inset 2px 2px 5px var(--shadow-dark), inset -2px -2px 5px var(--shadow-light);
+            outline: none;
+            transition: background 1s ease, box-shadow 1s ease;
+            touch-action: none;
+        }
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--bg-neu);
+            box-shadow: 2px 2px 5px var(--shadow-dark), -2px -2px 5px var(--shadow-light);
+            cursor: pointer;
+            transition: background 1s ease, box-shadow 1s ease;
+            touch-action: none;
+        }
+        .volume-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--bg-neu);
+            box-shadow: 2px 2px 5px var(--shadow-dark), -2px -2px 5px var(--shadow-light);
+            cursor: pointer;
+            border: none;
+            touch-action: none;
+        }
+
+        /* ── TRACK META ── */
+        .track-meta-card {
+            background: var(--glass-overlay);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            box-shadow: inset 1px 1px 0 var(--glass-shine), inset -1px -1px 0 rgba(0, 0, 0, 0.04);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            width: 100%;
+            min-width: 0;
+            overflow: hidden;
+            transition: background 0.6s ease, border-color 0.6s ease;
+        }
+
+        @media (min-width: 420px) {
+            .track-meta-card {
+                padding: 16px 18px;
+                border-radius: 20px;
+                margin-bottom: 16px;
+            }
+        }
+
+        .track-meta-card h3 {
+            font-size: clamp(1.1rem, 5vw, 1.55rem);
+            line-height: 1.1;
+            margin: 0;
+            letter-spacing: 0.02em;
+            font-weight: 700;
+        }
+
+        .track-meta-card p {
+            margin: 4px 0 0;
+            font-size: clamp(0.6rem, 2.5vw, 0.8rem);
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            opacity: 0.8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+        .track-meta-hint {
+            margin-top: 6px;
+            font-size: 0.6rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            opacity: 0.6;
+        }
+        @media (min-width: 420px) {
+            .track-meta-hint {
+                font-size: 0.72rem;
+            }
+        }
+
+        /* ── PLAY PILL ── */
+        .btn-play-pill {
+            width: 90px;
+            height: 42px;
+            border-radius: 25px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            display: flex;
+            gap: 6px;
+            color: var(--text-main);
+            touch-action: manipulation;
+        }
+        @media (min-width: 420px) {
+            .btn-play-pill {
+                width: 110px;
+                height: 50px;
+                font-size: 0.9rem;
+                gap: 8px;
+            }
+        }
+
+        .btn-play-pill.active-state {
+            color: #e53e3e;
+            box-shadow: inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light);
+        }
+
+        /* ── QUEUE COUNTER ── */
+        .queue-counter {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #6b8cce;
+            color: white;
+            border-radius: 50%;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.65rem;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+        }
+        @media (min-width: 420px) {
+            .queue-counter {
+                top: -15px;
+                right: -15px;
+                width: 30px;
+                height: 30px;
+                font-size: 0.8rem;
+            }
+        }
+        .queue-counter.hidden {
+            display: none;
+        }
+
+        /* ── CASSETTE PLAYER ── */
+        .cassette-player-body {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            max-width: 440px;
+            background:
+                repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.03) 0px, rgba(0, 0, 0, 0.03) 2px, transparent 2px, transparent 4px),
+                linear-gradient(180deg, var(--cassette-blue-light) 0%, var(--cassette-blue) 30%, var(--cassette-blue-dark) 100%);
+            border-radius: 30px;
+            padding: 12px 16px 28px 16px;
+            box-shadow:
+                inset 0px 10px 20px rgba(255, 255, 255, 0.4),
+                inset 0px -15px 30px rgba(0, 0, 0, 0.6),
+                0 30px 50px rgba(0, 0, 0, 0.8),
+                0 10px 20px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 2px solid #2a4058;
+            position: relative;
+        }
+
+        @media (min-width: 420px) {
+            .cassette-player-body {
+                padding: 15px 30px 40px 30px;
+                border-radius: 40px;
+            }
+        }
+
+        .cassette-player-body::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2%;
+            right: 2%;
+            height: 25%;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+            border-radius: 40px 40px 0 0;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .cassette-screw {
+            width: 10px;
+            height: 10px;
+            background: #64748b;
+            border-radius: 50%;
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.7), inset -1px -1px 3px rgba(255, 255, 255, 0.5), 0 1px 2px rgba(0, 0, 0, 0.6);
+            z-index: 10;
+        }
+        .cassette-screw::after {
+            content: '';
+            width: 6px;
+            height: 2px;
+            background: #334155;
+            transform: rotate(45deg);
+        }
+        .screw-tl {
+            top: 12px;
+            left: 14px;
+        }
+        .screw-tr {
+            top: 12px;
+            right: 14px;
+        }
+        .screw-bl {
+            bottom: 14px;
+            left: 14px;
+        }
+        .screw-br {
+            bottom: 14px;
+            right: 14px;
+        }
+        @media (min-width: 420px) {
+            .cassette-screw {
+                width: 12px;
+                height: 12px;
+            }
+            .cassette-screw::after {
+                width: 8px;
+                height: 2px;
+            }
+            .screw-tl {
+                top: 18px;
+                left: 20px;
+            }
+            .screw-tr {
+                top: 18px;
+                right: 20px;
+            }
+            .screw-bl {
+                bottom: 20px;
+                left: 20px;
+            }
+            .screw-br {
+                bottom: 20px;
+                right: 20px;
+            }
+        }
+
+        .cassette-top-panel {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 18px;
+            margin-top: -28px;
+            background: #233446;
+            padding: 8px 14px;
+            border-radius: 10px;
+            box-shadow: inset 0 5px 10px rgba(0, 0, 0, 0.8), 0 2px 0 rgba(255, 255, 255, 0.2);
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        @media (min-width: 420px) {
+            .cassette-top-panel {
+                gap: 15px;
+                margin-top: -35px;
+                padding: 10px 25px;
+                border-radius: 12px;
+            }
+        }
+
+        .cassette-btn {
+            width: 44px;
+            height: 26px;
+            background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
+            border: none;
+            border-radius: 5px;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #1e293b;
+            box-shadow: inset 0px 4px 6px rgba(255, 255, 255, 0.9), 0 -3px 6px rgba(0, 0, 0, 0.4), -1px 0 3px rgba(0, 0, 0, 0.3), 1px 0 3px rgba(0, 0, 0, 0.3);
+            transition: all 0.1s;
+            touch-action: manipulation;
+            padding: 0;
+        }
+        .cassette-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+        .cassette-btn:active,
+        .cassette-btn.is-active-btn {
+            transform: translateY(6px);
+            box-shadow: inset 0px 1px 3px rgba(255, 255, 255, 0.4), 0 0 0 rgba(0, 0, 0, 0.3);
+            height: 20px;
+            margin-top: 6px;
+        }
+        @media (min-width: 420px) {
+            .cassette-btn {
+                width: 55px;
+                height: 30px;
+                border-radius: 6px;
+                border-bottom-left-radius: 0;
+                border-bottom-right-radius: 0;
+            }
+            .cassette-btn svg {
+                width: 20px;
+                height: 20px;
+            }
+            .cassette-btn:active,
+            .cassette-btn.is-active-btn {
+                transform: translateY(8px);
+                height: 22px;
+                margin-top: 8px;
+            }
+        }
+
+        .cassette-label-area {
+            background: #f8f9fa;
+            width: 92%;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 14px;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.05), 0 2px 10px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid #cbd5e1;
+        }
+        @media (min-width: 420px) {
+            .cassette-label-area {
+                padding: 15px 20px;
+                margin-bottom: 20px;
+                border-radius: 12px;
+            }
+        }
+
+        .cassette-label-area::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            bottom: 4px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            pointer-events: none;
+        }
+        @media (min-width: 420px) {
+            .cassette-label-area::before {
+                top: 6px;
+                left: 6px;
+                right: 6px;
+                bottom: 6px;
+                border-radius: 8px;
+            }
+        }
+
+        .cassette-branding {
+            text-align: center;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 6;
+        }
+        .cassette-branding h1 {
+            font-family: 'Black Ops One', cursive;
+            color: #b91c1c;
+            margin: 0;
+            font-size: clamp(1.4rem, 6vw, 2.2rem);
+            letter-spacing: 2px;
+            text-shadow: 1px 1px 0px rgba(255, 255, 255, 1);
+        }
+        .cassette-branding p {
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            color: #475569;
+            margin: 0;
+            font-size: clamp(0.5rem, 2vw, 0.7rem);
+            letter-spacing: 2px;
+        }
+        @media (min-width: 420px) {
+            .cassette-branding {
+                margin-bottom: 15px;
+            }
+            .cassette-branding p {
+                letter-spacing: 3px;
+            }
+        }
+
+        .cassette-door {
+            width: 100%;
+            background: linear-gradient(180deg, #e2e8f0 0%, #94a3b8 100%);
+            border-radius: 10px;
+            padding: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s;
+            z-index: 6;
+            box-shadow: inset 0px 4px 12px rgba(0, 0, 0, 0.1), inset 0px -4px 8px rgba(255, 255, 255, 0.8), 0px 4px 15px rgba(0, 0, 0, 0.3);
+            border: 2px solid #64748b;
+            touch-action: manipulation;
+        }
+        @media (min-width: 420px) {
+            .cassette-door {
+                padding: 20px;
+                border-radius: 14px;
+            }
+        }
+        .cassette-door:active {
+            transform: scale(0.98);
+        }
+
+        .cassette-window {
+            width: 100%;
+            height: 70px;
+            background: rgba(15, 23, 42, 0.95);
+            border-radius: 8px;
+            border: 3px solid #64748b;
+            box-shadow: inset 0px 10px 25px rgba(0, 0, 0, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        @media (min-width: 420px) {
+            .cassette-window {
+                height: 110px;
+                border-radius: 10px;
+            }
+        }
+
+        .cassette-bridge {
+            position: absolute;
+            width: 55%;
+            height: 28px;
+            background: linear-gradient(0deg, #111, #222);
+            border-radius: 14px;
+            z-index: 1;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.9);
+            border: 1px solid #333;
+        }
+        @media (min-width: 420px) {
+            .cassette-bridge {
+                height: 40px;
+                border-radius: 20px;
+            }
+        }
+
+        .tape-reels-container {
+            width: 80%;
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            z-index: 2;
+        }
+
+        .tape-reel {
+            width: 44px;
+            height: 44px;
+            background: repeating-radial-gradient(circle, #222 0px, #111 2px, #333 4px);
+            border-radius: 50%;
+            border: 3px solid #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 0 8px #291a13, 0 0 20px rgba(0, 0, 0, 0.9);
+        }
+        @media (min-width: 420px) {
+            .tape-reel {
+                width: 75px;
+                height: 75px;
+                border: 4px solid #fff;
+                box-shadow: 0 0 0 12px #291a13, 0 0 20px rgba(0, 0, 0, 0.9);
+            }
+        }
+
+        .reel-spokes {
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, var(--cassette-blue-light), var(--cassette-blue-dark));
+            border-radius: 50%;
+            position: relative;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.9);
+        }
+        @media (min-width: 420px) {
+            .reel-spokes {
+                width: 35px;
+                height: 35px;
+            }
+        }
+        .reel-spokes::before,
+        .reel-spokes::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            background: #0f172a;
+            transform: translate(-50%, -50%);
+        }
+        .reel-spokes::before {
+            width: 100%;
+            height: 4px;
+        }
+        .reel-spokes::after {
+            width: 4px;
+            height: 100%;
+        }
+        @media (min-width: 420px) {
+            .reel-spokes::before {
+                height: 6px;
+            }
+            .reel-spokes::after {
+                width: 6px;
+            }
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        .is-playing-state .tape-reel {
+            animation: spin 2.5s linear infinite;
+        }
+
+        .cassette-info {
+            background: #0f172a;
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            border-radius: 10px;
+            padding: 10px 14px;
+            border: 3px solid #000;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.9), 0 2px 0 rgba(255, 255, 255, 0.2);
+            position: relative;
+            z-index: 6;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        @media (min-width: 420px) {
+            .cassette-info {
+                padding: 12px 20px;
+                border-radius: 12px;
+                gap: 10px;
+            }
+        }
+
+        .lcd-text {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--lcd-green);
+            font-size: clamp(0.8rem, 3.5vw, 1.2rem);
+            text-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+        }
+
+        .cassette-progress-container {
+            width: 100%;
+            height: 5px;
+            background: #1e293b;
+            border-radius: 3px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+        @media (min-width: 420px) {
+            .cassette-progress-container {
+                height: 6px;
+            }
+        }
+
+        .cassette-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--lcd-green);
+            box-shadow: 0 0 8px var(--lcd-green);
+            transition: width 0.1s linear;
+        }
+
+        #cassetteVisualizer {
+            width: 100%;
+            height: 24px;
+            display: block;
+        }
+        @media (min-width: 420px) {
+            #cassetteVisualizer {
+                height: 30px;
+            }
+        }
+
+        body.theme-cassette .volume-slider {
+            background: #1e293b;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+            height: 4px;
+        }
+        body.theme-cassette .volume-slider::-webkit-slider-thumb {
+            background: var(--lcd-green);
+            box-shadow: 0 0 8px var(--lcd-green);
+            width: 12px;
+            height: 18px;
+            border-radius: 2px;
+        }
+        body.theme-cassette .volume-slider::-moz-range-thumb {
+            background: var(--lcd-green);
+            box-shadow: 0 0 8px var(--lcd-green);
+            width: 12px;
+            height: 18px;
+            border-radius: 2px;
+            border: none;
+        }
+
+        .cassette-info .marquee-wrapper {
+            max-width: 70%;
+        }
+        @media (min-width: 420px) {
+            .cassette-info .marquee-wrapper {
+                max-width: 75%;
+            }
+        }
+
+        .cassette-info .lcd-text:last-of-type {
+            font-size: clamp(0.7rem, 3vw, 1rem);
+        }
+
+        /* ── LORE MODAL ── */
+        .lore-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            padding: 20px;
+        }
+        .lore-modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .lore-modal-content {
+            background: var(--bg-neu, #e0e5ec);
+            color: var(--text-main, #333);
+            padding: 24px 20px;
+            border-radius: 16px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            font-family: 'Inter', sans-serif;
+            position: relative;
+        }
+        @media (min-width: 420px) {
+            .lore-modal-content {
+                padding: 30px;
+                border-radius: 20px;
+            }
+        }
+        body.theme-cassette .lore-modal-content {
+            background: #0f172a;
+            color: #4ade80;
+            border: 2px solid #4ade80;
+            font-family: 'Share Tech Mono', monospace;
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+        }
+        .lore-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: bold;
+            opacity: 0.7;
+        }
+        .lore-close:hover {
+            opacity: 1;
+        }
+
+        /* ── AUTH SCREEN ── */
+        .auth-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-neu);
+            transition: background 1s ease;
+            padding: 16px;
+        }
+        .auth-card {
+            width: 100%;
+            max-width: 380px;
+            border-radius: 28px;
+            padding: 32px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        @media (min-width: 420px) {
+            .auth-card {
+                border-radius: 32px;
+                padding: 44px 32px;
+                gap: 20px;
+            }
+        }
+
+        .auth-logo {
+            font-family: 'Black Ops One', cursive;
+            font-size: clamp(1.8rem, 8vw, 2.4rem);
+            letter-spacing: 2px;
+            color: var(--text-main);
+            margin: 0;
+        }
+        .auth-tagline {
+            font-size: clamp(0.6rem, 2.5vw, 0.72rem);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin: -8px 0 2px 0;
+        }
+        @media (min-width: 420px) {
+            .auth-tagline {
+                margin: -12px 0 4px 0;
+                letter-spacing: 3px;
+            }
+        }
+
+        .auth-mode-switch {
+            display: flex;
+            width: 100%;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 4px;
+            border-radius: 18px;
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.1), inset -2px -2px 5px rgba(255, 255, 255, 0.5);
+        }
+        @media (min-width: 420px) {
+            .auth-mode-switch {
+                padding: 6px;
+                border-radius: 20px;
+                gap: 8px;
+            }
+        }
+
+        .auth-mode-btn {
+            flex: 1;
+            padding: 8px 0;
+            border: none;
+            background: transparent;
+            border-radius: 13px;
+            font-weight: 700;
+            font-size: clamp(0.65rem, 2.5vw, 0.78rem);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            touch-action: manipulation;
+        }
+        @media (min-width: 420px) {
+            .auth-mode-btn {
+                padding: 10px 0;
+                border-radius: 15px;
+                font-size: 0.78rem;
+            }
+        }
+
+        .auth-mode-btn.active {
+            background: var(--bg-neu);
+            color: var(--text-main);
+            box-shadow: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+        }
+
+        .auth-form {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        @media (min-width: 420px) {
+            .auth-form {
+                gap: 14px;
+            }
+        }
+
+        .auth-error {
+            font-size: 0.7rem;
+            color: #e53e3e;
+            text-align: center;
+            min-height: 1em;
+            font-weight: 600;
+        }
+        @media (min-width: 420px) {
+            .auth-error {
+                font-size: 0.78rem;
+            }
+        }
+
+        .auth-hint {
+            font-size: clamp(0.6rem, 2.5vw, 0.72rem);
+            color: var(--text-muted);
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .neu-input {
+            width: 100%;
+            padding: 12px 14px;
+            border: none;
+            outline: none;
+            border-radius: 14px;
+            background: var(--bg-neu);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            font-size: clamp(0.8rem, 3vw, 0.88rem);
+            box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
+            transition: background 1s ease, box-shadow 0.2s ease;
+            -webkit-appearance: none;
+        }
+        @media (min-width: 420px) {
+            .neu-input {
+                padding: 14px 18px;
+                border-radius: 16px;
+            }
+        }
+
+        .neu-input::placeholder {
+            color: var(--text-muted);
+        }
+        .neu-input:focus {
+            box-shadow: inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light), 0 0 0 2px var(--accent-glow);
+        }
+
+        .btn-block {
+            width: 100%;
+            padding: 12px 0;
+            border-radius: 16px;
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: clamp(0.7rem, 2.8vw, 0.82rem);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-main);
+            background: var(--bg-neu);
+            box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light);
+            transition: all 0.15s ease;
+            touch-action: manipulation;
+        }
+        @media (min-width: 420px) {
+            .btn-block {
+                padding: 14px 0;
+                border-radius: 18px;
+                font-size: 0.82rem;
+            }
+        }
+
+        .btn-block:active {
+            box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
+        }
+        .btn-block:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ── USER BAR ── */
+        .user-bar {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding: 8px 14px;
+            border-radius: 16px;
+            background: var(--bg-neu);
+            box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+            font-size: clamp(0.65rem, 2.5vw, 0.78rem);
+            font-weight: 700;
+            color: var(--text-main);
+            transition: background 1s ease;
+            flex-shrink: 0;
+        }
+        @media (min-width: 420px) {
+            .user-bar {
+                margin-bottom: 16px;
+                padding: 10px 18px;
+                border-radius: 20px;
+                font-size: 0.78rem;
+            }
+        }
+
+        .user-bar .user-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        @media (min-width: 420px) {
+            .user-bar .user-name {
+                gap: 8px;
+            }
+        }
+
+        .user-bar button {
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-weight: 700;
+            font-size: clamp(0.6rem, 2.5vw, 0.72rem);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            touch-action: manipulation;
+            padding: 4px 8px;
+        }
+        .user-bar button:hover {
+            color: #e53e3e;
+        }
+
+        /* ── TAB BAR ── */
+        .tab-bar {
+            display: flex;
+            width: 100%;
+            gap: 4px;
+            margin-bottom: 20px;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 4px;
+            border-radius: 18px;
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.1), inset -2px -2px 5px rgba(255, 255, 255, 0.5);
+            flex-shrink: 0;
+        }
+        @media (min-width: 420px) {
+            .tab-bar {
+                gap: 8px;
+                padding: 6px;
+                border-radius: 24px;
+                margin-bottom: 30px;
+            }
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px 0;
+            border: none;
+            border-radius: 14px;
+            background: transparent;
+            color: var(--text-muted);
+            font-weight: 700;
+            font-size: clamp(0.6rem, 2.5vw, 0.72rem);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            touch-action: manipulation;
+        }
+        @media (min-width: 420px) {
+            .tab-btn {
+                padding: 10px 0;
+                border-radius: 18px;
+                font-size: 0.72rem;
+            }
+        }
+
+        .tab-btn.active {
+            background: var(--bg-neu);
+            color: var(--text-main);
+            box-shadow: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+        }
+
+        /* ── LIBRARY ── */
+        .library-panel {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        @media (min-width: 420px) {
+            .library-panel {
+                gap: 18px;
+            }
+        }
+
+        .library-list {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 55vh;
+            overflow-y: auto;
+            padding-right: 2px;
+            -webkit-overflow-scrolling: touch;
+        }
+        @media (min-width: 420px) {
+            .library-list {
+                gap: 12px;
+            }
+        }
+
+        .library-empty {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: clamp(0.75rem, 3vw, 0.85rem);
+            padding: 30px 10px;
+            line-height: 1.6;
+        }
+        @media (min-width: 420px) {
+            .library-empty {
+                padding: 40px 10px;
+            }
+        }
+
+        .library-search {
+            width: 100%;
+            padding: 12px 14px;
+            border: none;
+            outline: none;
+            border-radius: 14px;
+            background: var(--bg-neu);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            font-size: clamp(0.8rem, 3vw, 0.88rem);
+            box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
+            transition: background 1s ease, box-shadow 0.2s ease;
+            -webkit-appearance: none;
+        }
+        @media (min-width: 420px) {
+            .library-search {
+                padding: 14px 18px;
+                border-radius: 16px;
+            }
+        }
+
+        .song-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: var(--bg-neu);
+            box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+            transition: background 1s ease;
+        }
+        @media (min-width: 420px) {
+            .song-row {
+                gap: 14px;
+                padding: 12px 14px;
+                border-radius: 18px;
+            }
+        }
+
+        .song-row.playing {
+            box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
+        }
+
+        .song-cover {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+            background: #ccc;
+        }
+        @media (min-width: 420px) {
+            .song-cover {
+                width: 46px;
+                height: 46px;
+                border-radius: 10px;
+            }
+        }
+
+        .song-meta {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .song-title {
+            font-size: clamp(0.75rem, 3vw, 0.86rem);
+            font-weight: 700;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .song-sub {
+            font-size: clamp(0.6rem, 2.5vw, 0.7rem);
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .song-play-btn {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: var(--bg-neu);
+            color: var(--text-main);
+            box-shadow: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+        }
+        .song-play-btn svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+        .song-play-btn:active {
+            box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
+        }
+        @media (min-width: 420px) {
+            .song-play-btn {
+                width: 38px;
+                height: 38px;
+            }
+            .song-play-btn svg {
+                width: 16px;
+                height: 16px;
+            }
+        }
+
+        /* ── UPLOAD ── */
+        .upload-panel {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        @media (min-width: 420px) {
+            .upload-panel {
+                gap: 16px;
+            }
+        }
+
+        .upload-dropzone {
+            width: 100%;
+            border-radius: 16px;
+            padding: 20px 14px;
+            text-align: center;
+            cursor: pointer;
+            background: var(--bg-neu);
+            box-shadow: inset 5px 5px 10px var(--shadow-dark), inset -5px -5px 10px var(--shadow-light);
+            color: var(--text-muted);
+            font-size: clamp(0.7rem, 2.8vw, 0.78rem);
+            font-weight: 600;
+            line-height: 1.6;
+            transition: background 1s ease;
+            touch-action: manipulation;
+        }
+        @media (min-width: 420px) {
+            .upload-dropzone {
+                padding: 28px 20px;
+                border-radius: 20px;
+                font-size: 0.78rem;
+            }
+        }
+
+        .upload-dropzone strong {
+            display: block;
+            color: var(--text-main);
+            font-size: clamp(0.8rem, 3.2vw, 0.92rem);
+            margin-bottom: 4px;
+        }
+
+        .upload-preview {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .upload-preview img {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            object-fit: cover;
+            background: #ccc;
+        }
+        @media (min-width: 420px) {
+            .upload-preview img {
+                width: 56px;
+                height: 56px;
+                border-radius: 12px;
+            }
+        }
+
+        .upload-field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .upload-field-label {
+            font-size: clamp(0.6rem, 2.5vw, 0.68rem);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 0;
+        }
+
+        .upload-status {
+            font-size: clamp(0.7rem, 2.8vw, 0.8rem);
+            text-align: center;
+            font-weight: 600;
+            min-height: 1.2em;
+            color: var(--text-muted);
+        }
+        .upload-status.success {
+            color: #38a169;
+        }
+        .upload-status.error {
+            color: #e53e3e;
+        }
+
+        /* ── CASSETTE THEME OVERRIDES ── */
+        body.theme-cassette .auth-card,
+        body.theme-cassette .user-bar,
+        body.theme-cassette .song-row,
+        body.theme-cassette .upload-dropzone,
+        body.theme-cassette .neu-input,
+        body.theme-cassette .tab-bar,
+        body.theme-cassette .auth-mode-switch,
+        body.theme-cassette .library-search {
+            background: #0f172a;
+            color: #4ade80;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.5);
+            border: 2px solid #1e293b;
+        }
+
+        body.theme-cassette .auth-logo {
+            font-family: 'Black Ops One', cursive;
+            color: #4ade80;
+            text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+        }
+        body.theme-cassette .song-title {
+            font-family: 'Share Tech Mono', monospace;
+            color: #4ade80;
+        }
+        body.theme-cassette .neu-input,
+        body.theme-cassette .library-search {
+            font-family: 'Share Tech Mono', monospace;
+            color: #4ade80;
+        }
+        body.theme-cassette .neu-input::placeholder,
+        body.theme-cassette .library-search::placeholder {
+            color: #2f855a;
+        }
+        body.theme-cassette .song-sub,
+        body.theme-cassette .auth-tagline,
+        body.theme-cassette .upload-dropzone,
+        body.theme-cassette .auth-hint {
+            color: #4ade80;
+            opacity: 0.65;
+        }
+        body.theme-cassette .tab-btn,
+        body.theme-cassette .auth-mode-btn,
+        body.theme-cassette .user-bar button,
+        body.theme-cassette .theme-btn:not(.cassette-active),
+        body.theme-cassette .upload-field-label {
+            color: #4ade80;
+            opacity: 0.6;
+        }
+        body.theme-cassette .tab-btn.active,
+        body.theme-cassette .auth-mode-btn.active {
+            opacity: 1;
+            background: linear-gradient(145deg, #ff007f, #7928ca);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4);
+        }
+        body.theme-cassette .btn-block {
+            background: linear-gradient(145deg, #ff007f, #7928ca);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4);
+        }
+        body.theme-cassette .song-play-btn {
+            background: #1e293b;
+            color: #4ade80;
+            border: 1px solid #334155;
+            box-shadow: none;
+        }
+        body.theme-cassette .song-cover {
+            border: 1px solid #334155;
+        }
+        body.theme-cassette .user-bar button:hover {
+            color: #ff4d6d;
+        }
+
+        /* ── FOOTER ── */
+        .app-footer {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin: 14px 0 8px;
+            opacity: 0.75;
+            font-size: clamp(0.6rem, 2.5vw, 0.72rem);
+            letter-spacing: 0.08em;
+            text-align: center;
+            color: var(--text-muted);
+            padding: 0 12px;
+        }
+        @media (min-width: 420px) {
+            .app-footer {
+                margin: 18px 0 10px;
+            }
+        }
+
+        .vinyl-center img[hidden] {
+            display: none;
+        }
+
+        /* ── UTILITY FIXES ── */
+        .hidden {
+            display: none !important;
+        }
+        .flex {
+            display: flex;
+        }
+        .flex-1 {
+            flex: 1;
+        }
+        .items-center {
+            align-items: center;
+        }
+        .gap-3 {
+            gap: 0.75rem;
+        }
+        .gap-4 {
+            gap: 1rem;
+        }
+        .mt-1 {
+            margin-top: 0.25rem;
+        }
+        .mt-3 {
+            margin-top: 0.75rem;
+        }
+        .mt-8 {
+            margin-top: 2rem;
+        }
+        .mb-1 {
+            margin-bottom: 0.25rem;
+        }
+        .mb-6 {
+            margin-bottom: 1.5rem;
+        }
+        .w-full {
+            width: 100%;
+        }
+        .text-xs {
+            font-size: 0.75rem;
+        }
+        .font-mono {
+            font-family: monospace;
+        }
+        .font-bold {
+            font-weight: 700;
+        }
+        .justify-between {
+            justify-content: space-between;
+        }
+        .items-end {
+            align-items: flex-end;
+        }
+        .px-4 {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        .absolute {
+            position: absolute;
+        }
+        .bottom-2 {
+            bottom: 0.5rem;
+        }
+        .w-full {
+            width: 100%;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .text-\[10px\] {
+            font-size: 10px;
+        }
+        .text-gray-700 {
+            color: #374151;
+        }
+        .tracking-widest {
+            letter-spacing: 0.1em;
+        }
+        .z-10 {
+            z-index: 10;
+        }
+
+        /* ── SMALL SCREEN TWEAKS ── */
+        @media (max-width: 380px) {
+            .player-container {
+                padding: 16px 10px 20px;
+                border-radius: 24px;
+                gap: 16px;
+            }
+            .turntable-area {
+                width: min(240px, 78vw);
+            }
+            .track-meta-card h3 {
+                font-size: clamp(0.9rem, 4.5vw, 1.1rem);
+            }
+            .btn-play-pill {
+                width: 76px;
+                height: 36px;
+                font-size: 0.65rem;
+                gap: 4px;
+            }
+            .btn svg {
+                width: 16px;
+                height: 16px;
+            }
+            .btn-circle {
+                width: 36px;
+                height: 36px;
+            }
+            .cassette-player-body {
+                padding: 10px 10px 20px;
+                border-radius: 24px;
+            }
+            .cassette-window {
+                height: 56px;
+            }
+            .tape-reel {
+                width: 36px;
+                height: 36px;
+                box-shadow: 0 0 0 6px #291a13, 0 0 20px rgba(0, 0, 0, 0.9);
+            }
+            .reel-spokes {
+                width: 16px;
+                height: 16px;
+            }
+            .cassette-top-panel {
+                gap: 4px;
+                padding: 6px 10px;
+                margin-top: -22px;
+            }
+            .cassette-btn {
+                width: 36px;
+                height: 22px;
+            }
+            .cassette-btn svg {
+                width: 14px;
+                height: 14px;
+            }
+            .cassette-info {
+                padding: 8px 10px;
+                gap: 4px;
+            }
+            #cassetteVisualizer {
+                height: 20px;
+            }
+            .auth-card {
+                padding: 24px 16px;
+                gap: 12px;
+            }
+            .auth-logo {
+                font-size: 1.6rem;
+            }
+            .user-bar {
+                padding: 6px 10px;
+                font-size: 0.6rem;
+            }
+            .tab-bar {
+                gap: 3px;
+                padding: 3px;
+            }
+            .tab-btn {
+                padding: 6px 0;
+                font-size: 0.55rem;
+                border-radius: 10px;
+            }
+            .song-row {
+                padding: 8px 10px;
+                gap: 8px;
+            }
+            .song-cover {
+                width: 32px;
+                height: 32px;
+            }
+            .song-play-btn {
+                width: 28px;
+                height: 28px;
+            }
+            .song-play-btn svg {
+                width: 12px;
+                height: 12px;
+            }
+            .upload-dropzone {
+                padding: 16px 12px;
+                font-size: 0.65rem;
+            }
+        }
+
+        /* ── TOUCH-FRIENDLY TARGETS ── */
+        @media (pointer: coarse) {
+            .btn,
+            .cassette-btn,
+            .song-play-btn,
+            .tab-btn,
+            .auth-mode-btn,
+            .theme-btn,
+            .btn-block,
+            .upload-dropzone,
+            .cassette-door,
+            .turntable-area,
+            .vinyl-record,
+            .progress-bar-bg {
+                cursor: default;
+            }
+            .btn:active,
+            .cassette-btn:active,
+            .song-play-btn:active,
+            .tab-btn:active,
+            .auth-mode-btn:active,
+            .theme-btn:active,
+            .btn-block:active,
+            .upload-dropzone:active,
+            .cassette-door:active {
+                transform: scale(0.96);
+            }
+        }
+
+        /* ── SCROLLBAR ── */
+        .library-list::-webkit-scrollbar {
+            width: 3px;
+        }
+        .library-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .library-list::-webkit-scrollbar-thumb {
+            background: var(--shadow-dark);
+            border-radius: 3px;
+        }
+        @media (min-width: 420px) {
+            .library-list::-webkit-scrollbar {
+                width: 4px;
+            }
+        }
+
+        body.theme-cassette .library-list::-webkit-scrollbar-thumb {
+            background: #4ade80;
+        }
+    </style>
+</head>
+<body class="theme-vinyl">
+
+    <audio id="audioPlayer" crossorigin="anonymous"></audio>
+
+    <div class="auth-screen" id="authScreen">
+        <div class="auth-card neu-flat">
+            <h1 class="auth-logo">TEEFY</h1>
+            <p class="auth-tagline">Upload. Share. Spin.</p>
+
+            <div class="auth-mode-switch">
+                <button class="auth-mode-btn active" id="loginModeBtn" onclick="setAuthMode('login')">Log In</button>
+                <button class="auth-mode-btn" id="signupModeBtn" onclick="setAuthMode('signup')">Sign Up</button>
+            </div>
+
+            <form class="auth-form" id="authForm">
+                <input class="neu-input" id="authUsername" type="text" placeholder="Display name" autocomplete="nickname" style="display:none;">
+                <input class="neu-input" id="authEmail" type="email" placeholder="Email" autocomplete="email" required>
+                <input class="neu-input" id="authPassword" type="password" placeholder="Password" autocomplete="current-password" required minlength="6">
+                <div class="auth-error" id="authError"></div>
+                <button type="submit" class="btn-block" id="authSubmitBtn">Log In</button>
+            </form>
+            <p class="auth-hint" id="authHint">New here? Switch to Sign Up to create an account and start uploading tracks to the shared library.</p>
+        </div>
+    </div>
+
+    <div class="app-wrapper" id="appWrapper" style="display:none;">
+
+        <div class="user-bar" id="userBar">
+            <span class="user-name">👤 <span id="userLabel">—</span></span>
+            <button id="logoutBtn" onclick="handleLogout()">Log Out</button>
+        </div>
+
+        <div class="theme-toggle-container">
+            <button class="theme-btn vinyl-active" onclick="switchTheme('vinyl')">Vinyl</button>
+            <button class="theme-btn" onclick="switchTheme('cassette')">Cassette</button>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab-btn active" id="tabBtnPlayer" onclick="switchTab('player')">Player</button>
+            <button class="tab-btn" id="tabBtnLibrary" onclick="switchTab('library')">Library</button>
+            <button class="tab-btn" id="tabBtnUpload" onclick="switchTab('upload')">Upload</button>
+        </div>
+
+        <div id="playerSection">
+            <div class="view vinyl-view" id="vinylView">
+                <div class="player-container neu-flat" id="vinylBase">
+
+                    <div class="turntable-area">
+                        <div class="vinyl-record" id="vinylRecord" title="Tap to play or pause">
+                            <div class="vinyl-center">
+                                <canvas id="colorCanvas" style="display:none;"></canvas>
+                                <img alt="Album Art" id="coverArt" crossorigin="anonymous" hidden>
+                                <div class="spindle"></div>
+                            </div>
+                            <div class="queue-counter hidden js-queue-counter">1/1</div>
+                        </div>
+                        <div class="tonearm-assembly" id="tonearm">
+                            <div class="tonearm-base"></div>
+                            <div class="tonearm-rod"></div>
+                            <div class="tonearm-headshell"></div>
+                        </div>
+                    </div>
+
+                    <div class="w-full px-4" style="min-width: 0;">
+                        <div class="track-meta-card">
+                            <div class="marquee-wrapper">
+                                <h3 class="marquee-content js-track-title" style="animation-play-state: paused; transition: color 1s ease;">No Track Loaded</h3>
+                            </div>
+                            <p class="js-track-artist" style="transition: color 1s ease;">Pick a track from the Library</p>
+                            <div class="track-meta-hint">Tap the record to play or pause</div>
+                        </div>
+
+                        <div class="progress-bar-bg js-progress-bg">
+                            <div class="progress-bar-fill js-progress-fill"></div>
+                        </div>
+                        <div class="flex justify-between text-xs mb-6 font-mono font-bold" style="color: var(--text-muted); transition: color 0.6s ease;">
+                            <span class="js-time-current">0:00</span>
+                            <span class="js-time-duration">0:00</span>
+                        </div>
+
+                        <div class="flex justify-between items-center w-full">
+                            <button class="btn btn-play-pill neu-flat js-btn-play">
+                                <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                <svg class="icon-pause hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                <span class="js-play-text">PLAY</span>
+                            </button>
+
+                            <div class="flex gap-4">
+                                <button class="btn btn-circle neu-flat js-btn-prev" title="Previous Track">
+                                    <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                                </button>
+                                <button class="btn btn-circle neu-flat js-btn-next" title="Next Track">
+                                    <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 mt-8 w-full" style="color: var(--text-muted); transition: color 0.6s ease;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+                            <input type="range" class="volume-slider flex-1 js-volume-slider" min="0" max="1" step="0.01" value="1">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="view cassette-view" id="cassetteView">
+                <div class="cassette-player-body">
+                    <div class="cassette-screw screw-tl"></div>
+                    <div class="cassette-screw screw-tr"></div>
+                    <div class="cassette-screw screw-bl"></div>
+                    <div class="cassette-screw screw-br"></div>
+
+                    <div class="cassette-top-panel">
+                        <button class="cassette-btn" title="Browse the library" onclick="switchTab('library')">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5 19h14v2H5v-2zm7-14l6 8H6l6-8z"/></svg>
+                        </button>
+
+                        <button class="cassette-btn js-btn-prev" title="Previous Track">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+                        </button>
+                        <button class="cassette-btn js-btn-play js-cassette-play-btn" title="Play / Pause">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="icon-play"><path d="M8 5v14l11-7z"/></svg>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="icon-pause hidden"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        </button>
+                        <button class="cassette-btn js-btn-next" title="Next Track">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="cassette-label-area">
+                        <div class="cassette-branding">
+                            <h1>RETRO SOUND</h1>
+                            <p>STEREO COMPONENT SYSTEM</p>
+                        </div>
+
+                        <div class="cassette-door" onclick="switchTab('library')">
+                            <div class="cassette-window" id="cassetteReels">
+                                <div class="cassette-bridge"></div>
+                                <div class="tape-reels-container">
+                                    <div class="tape-reel"><div class="reel-spokes"></div></div>
+                                    <div class="tape-reel"><div class="reel-spokes"></div></div>
+                                </div>
+                            </div>
+                            <div class="absolute bottom-2 w-full text-center text-[10px] text-gray-700 font-bold tracking-widest z-10">TAP TO BROWSE LIBRARY</div>
+                        </div>
+                    </div>
+
+                    <div class="cassette-info">
+                        <div class="flex justify-between items-end mb-1">
+                            <div class="marquee-wrapper" style="max-width: 70%;">
+                                <div class="lcd-text marquee-content js-track-title" style="animation-play-state: paused; padding-left: 0;">INSERT TAPE</div>
+                            </div>
+                            <div class="lcd-text js-time-current" style="font-size: clamp(0.7rem, 3vw, 1rem);">0:00</div>
+                        </div>
+                        <canvas id="cassetteVisualizer" width="300" height="40"></canvas>
+                        <div class="cassette-progress-container js-progress-bg mt-1">
+                            <div class="cassette-progress-fill js-progress-fill"></div>
+                        </div>
+                        <div class="flex items-center gap-3 mt-3 w-full" style="color: var(--lcd-green)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+                            <input type="range" class="volume-slider flex-1 js-volume-slider" min="0" max="1" step="0.01" value="1">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div id="librarySection" class="library-panel" style="display:none;">
+            <input type="text" class="neu-input library-search" id="librarySearch" placeholder="Search title, artist, or uploader…" oninput="renderLibrary()">
+            <div class="library-list" id="libraryList">
+                <div class="library-empty">Loading the library…</div>
+            </div>
+        </div>
+
+        <div id="uploadSection" class="upload-panel" style="display:none;">
+            <label class="upload-dropzone" for="uploadFileInput" id="uploadDropzone">
+                <strong id="uploadDropzoneTitle">Choose an audio file</strong>
+                MP3, WAV, M4A, or OGG. We'll pull the title, artist, and cover art automatically when we can.
+            </label>
+            <input type="file" id="uploadFileInput" accept="audio/*" style="display:none;">
+
+            <div class="upload-preview" id="uploadPreview" style="display:none;">
+                <img id="uploadCoverPreview" src="" alt="Cover preview">
+                <div class="song-meta">
+                    <div class="song-title" id="uploadFileName">—</div>
+                    <div class="song-sub" id="uploadFileDuration">—</div>
+                </div>
+            </div>
+
+            <div class="upload-field-group">
+                <div class="upload-field-label">Title</div>
+                <input type="text" class="neu-input" id="uploadTitle" placeholder="Track title">
+            </div>
+            <div class="upload-field-group">
+                <div class="upload-field-label">Artist</div>
+                <input type="text" class="neu-input" id="uploadArtist" placeholder="Artist name">
+            </div>
+
+            <button class="btn-block" id="uploadSubmitBtn" onclick="handleUploadSubmit()" disabled>Upload to Library</button>
+            <div class="upload-status" id="uploadStatus"></div>
+        </div>
+
+    </div>
+
+    <div class="app-footer">developed by tee_hee</div>
+
+    <script>
+        const audio = document.getElementById('audioPlayer');
+        const vinylView = document.getElementById('vinylView');
+        const cassetteView = document.getElementById('cassetteView');
+        const body = document.body;
+        const vinylRecord = document.getElementById('vinylRecord');
+        const vinylBase = document.getElementById('vinylBase');
+        const tonearm = document.getElementById('tonearm');
+        const coverArt = document.getElementById('coverArt');
+        const turntableArea = document.querySelector('.turntable-area');
+
+        const cassetteCanvas = document.getElementById('cassetteVisualizer');
+        const ctxCassette = cassetteCanvas.getContext('2d');
+
+        const DEFAULT_COVER = "";
+
+
+        const SUPABASE_URL = "https://qivhbjfryuxqsoyszihf.supabase.co";
+        const SUPABASE_ANON_KEY =
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpdmhiamZyeXV4cXNveXN6aWhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNTk5MjcsImV4cCI6MjA5ODkzNTkyN30.gdHvMe0RkYag7SEER6ZJiwJ32hp8wmrK-rUobePKVSM";
+
+        const supabaseClient = (window.supabase && !SUPABASE_URL.includes('YOUR-PROJECT')) ?
+            window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) :
+            null;
+
+        const MAX_UPLOAD_MB = 25;
+
+        let isPlaying = false;
+        let playlist = [];
+        let currentIndex = 0;
+        let currentTheme = 'vinyl';
+
+        let session = null;
+        let librarySongs = [];
+        let activeTab = 'player';
+        let authMode = 'login';
+
+        let uploadPickedFile = null;
+        let uploadCoverBlob = null;
+        let uploadDuration = null;
+
+        let audioCtx, analyser, dataArray, animationId;
+
+        function switchTheme(themeName) {
+            currentTheme = themeName;
+            body.className = `theme-${themeName}`;
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.remove('vinyl-active', 'cassette-active');
+                if (btn.textContent.toLowerCase() === themeName) {
+                    btn.classList.add(`${themeName}-active`);
+                }
+            });
+
+            if (themeName === 'vinyl') {
+                vinylView.style.visibility = 'visible';
+                vinylView.style.opacity = '1';
+                vinylView.style.transform = 'translateX(-50%) scale(1)';
+                cassetteView.style.opacity = '0';
+                cassetteView.style.transform = 'translateX(-50%) scale(0.95)';
+                setTimeout(() => { if (currentTheme === 'vinyl') cassetteView.style.visibility = 'hidden'; }, 600);
+            } else {
+                cassetteView.style.visibility = 'visible';
+                cassetteView.style.opacity = '1';
+                cassetteView.style.transform = 'translateX(-50%) scale(1)';
+                vinylView.style.opacity = '0';
+                vinylView.style.transform = 'translateX(-50%) scale(0.95)';
+                setTimeout(() => { if (currentTheme === 'cassette') vinylView.style.visibility = 'hidden'; }, 600);
+            }
+        }
+
+        coverArt.addEventListener('load', function() {
+            coverArt.hidden = false;
+            if (currentTheme !== 'vinyl') return;
+
+            const canvas = document.getElementById('colorCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 100;
+            canvas.height = 100;
+
+            try {
+                ctx.drawImage(coverArt, 0, 0, 100, 100);
+                const data = ctx.getImageData(0, 0, 100, 100).data;
+
+                let r = 0,
+                    g = 0,
+                    b = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    r += data[i];
+                    g += data[i + 1];
+                    b += data[i + 2];
+                }
+
+                const count = data.length / 4;
+                updateNeumorphicPalette(Math.floor(r / count), Math.floor(g / count), Math.floor(b / count));
+            } catch (e) {
+                console.warn("Could not extract image color (likely a cross-origin cover image).", e);
+            }
+        });
+
+        function updateNeumorphicPalette(r, g, b) {
+            const clamp = (n) => Math.max(0, Math.min(255, n));
+            const rgbToHsl = (R, G, B) => {
+                R /= 255;
+                G /= 255;
+                B /= 255;
+                const max = Math.max(R, G, B);
+                const min = Math.min(R, G, B);
+                const d = max - min;
+                let h = 0;
+                const l = (max + min) / 2;
+                const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+                if (d !== 0) {
+                    switch (max) {
+                        case R:
+                            h = ((G - B) / d) % 6;
+                            break;
+                        case G:
+                            h = (B - R) / d + 2;
+                            break;
+                        case B:
+                            h = (R - G) / d + 4;
+                            break;
+                    }
+                    h *= 60;
+                    if (h < 0) h += 360;
+                }
+                return { h, s, l };
+            };
+
+            const hslToRgb = (h, s, l) => {
+                const c = (1 - Math.abs(2 * l - 1)) * s;
+                const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+                const m = l - c / 2;
+                let r1 = 0,
+                    g1 = 0,
+                    b1 = 0;
+                if (h < 60) { r1 = c;
+                    g1 = x;
+                    b1 = 0; } else if (h < 120) { r1 = x;
+                    g1 = c;
+                    b1 = 0; } else if (h < 180) { r1 = 0;
+                    g1 = c;
+                    b1 = x; } else if (h < 240) { r1 = 0;
+                    g1 = x;
+                    b1 = c; } else if (h < 300) { r1 = x;
+                    g1 = 0;
+                    b1 = c; } else { r1 = c;
+                    g1 = 0;
+                    b1 = x; }
+                return {
+                    r: Math.round((r1 + m) * 255),
+                    g: Math.round((g1 + m) * 255),
+                    b: Math.round((b1 + m) * 255)
+                };
+            };
+
+            const { h, s, l } = rgbToHsl(r, g, b);
+            const targetL = Math.min(0.88, Math.max(0.55, l + 0.22));
+            const targetS = Math.min(0.75, s * 0.85 + 0.05);
+
+            const light = hslToRgb(h, targetS, targetL);
+            const lightR = clamp(light.r);
+            const lightG = clamp(light.g);
+            const lightB = clamp(light.b);
+
+            const darkR = clamp(lightR - 45);
+            const darkG = clamp(lightG - 45);
+            const darkB = clamp(lightB - 45);
+
+            const light2R = clamp(lightR + 28);
+            const light2G = clamp(lightG + 28);
+            const light2B = clamp(lightB + 28);
+
+            document.documentElement.style.setProperty('--bg-neu', `rgb(${lightR}, ${lightG}, ${lightB})`);
+            document.documentElement.style.setProperty('--shadow-dark', `rgb(${darkR}, ${darkG}, ${darkB})`);
+            document.documentElement.style.setProperty('--shadow-light', `rgb(${light2R}, ${light2G}, ${light2B})`);
+
+            const relLuminance = (R, G, B) => {
+                const chan = (v) => {
+                    v /= 255;
+                    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+                };
+                return 0.2126 * chan(R) + 0.7152 * chan(G) + 0.0722 * chan(B);
+            };
+            const contrastRatio = (l1, l2) => {
+                const lighter = Math.max(l1, l2),
+                    darker = Math.min(l1, l2);
+                return (lighter + 0.05) / (darker + 0.05);
+            };
+
+            const bgLum = relLuminance(lightR, lightG, lightB);
+            const darkTextLum = relLuminance(0, 0, 0);
+            const lightTextLum = relLuminance(255, 255, 255);
+            const useLightText = contrastRatio(bgLum, lightTextLum) > contrastRatio(bgLum, darkTextLum);
+
+            const root = document.documentElement.style;
+            if (useLightText) {
+                root.setProperty('--text-main', 'rgba(255, 255, 255, 0.95)');
+                root.setProperty('--text-muted', 'rgba(255, 255, 255, 0.72)');
+                root.setProperty('--glass-overlay', 'rgba(0, 0, 0, 0.30)');
+                root.setProperty('--glass-border', 'rgba(255, 255, 255, 0.18)');
+                root.setProperty('--glass-shine', 'rgba(255, 255, 255, 0.12)');
+            } else {
+                root.setProperty('--text-main', 'rgba(0, 0, 0, 0.85)');
+                root.setProperty('--text-muted', 'rgba(0, 0, 0, 0.55)');
+                root.setProperty('--glass-overlay', 'rgba(255, 255, 255, 0.25)');
+                root.setProperty('--glass-border', 'rgba(255, 255, 255, 0.35)');
+                root.setProperty('--glass-shine', 'rgba(255, 255, 255, 0.7)');
+            }
+        }
+
+        function initAudioContext() {
+            if (audioCtx) return;
+            audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaElementSource(audio);
+            analyser = audioCtx.createAnalyser();
+            source.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            analyser.fftSize = 64;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            drawVisualizer();
+        }
+
+        function drawVisualizer() {
+            animationId = requestAnimationFrame(drawVisualizer);
+            analyser.getByteFrequencyData(dataArray);
+
+            ctxCassette.clearRect(0, 0, cassetteCanvas.width, cassetteCanvas.height);
+            const barWidth = (cassetteCanvas.width / dataArray.length) * 1.5;
+            let x = 0,
+                bassSum = 0;
+
+            for (let i = 0; i < dataArray.length; i++) {
+                const barHeight = (dataArray[i] / 255) * cassetteCanvas.height;
+                if (i < 5) bassSum += dataArray[i];
+
+                ctxCassette.fillStyle = '#4ade80';
+                const segments = Math.floor(barHeight / 4);
+                for (let s = 0; s < segments; s++) {
+                    ctxCassette.fillRect(x, cassetteCanvas.height - (s * 5) - 4, barWidth - 2, 3);
+                }
+                ctxCassette.shadowBlur = 5;
+                ctxCassette.shadowColor = '#4ade80';
+                x += barWidth + 1;
+            }
+
+            if (currentTheme === 'vinyl') {
+                const intensity = (bassSum / 5) / 255;
+                const glowSpread = 16 + (intensity * 30);
+                const rgb = `rgba(255, 255, 255, ${intensity * 0.4})`;
+
+                vinylBase.style.boxShadow = `
+                    9px 9px 16px var(--shadow-dark),
+                   -9px -9px 16px var(--shadow-light),
+                    0 0 ${glowSpread}px ${rgb}
+                `;
+            } else {
+                vinylBase.style.boxShadow =
+                `9px 9px 16px var(--shadow-dark), -9px -9px 16px var(--shadow-light)`;
+            }
+        }
+
+        const formatTime = (sec) => {
+            if (isNaN(sec)) return "0:00";
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        };
+
+        const updateAllText = (selector, text) => {
+            document.querySelectorAll(selector).forEach(el => {
+                el.textContent = text;
+                if (el.classList.contains('marquee-content')) {
+                    if (text.length > 20) {
+                        el.style.animationPlayState = 'running';
+                        el.style.paddingLeft = '100%';
+                    } else {
+                        el.style.animationPlayState = 'paused';
+                        el.style.paddingLeft = '0';
+                        el.style.transform = 'translateX(0)';
+                    }
+                }
+            });
+        };
+
+        const escapeHtml = (str) => {
+            const div = document.createElement('div');
+            div.textContent = str ?? '';
+            return div.innerHTML;
+        };
+
+        const setTonearmAngle = (angle) => {
+            if (tonearm) tonearm.style.transform = `rotate(${angle}deg)`;
+        };
+
+        const syncTonearmForPlayback = () => {
+            if (currentTheme !== 'vinyl') return;
+            if (!isPlaying) {
+                setTonearmAngle(-25);
+                return;
+            }
+            if (!audio.duration || Number.isNaN(audio.duration)) {
+                setTonearmAngle(5);
+                return;
+            }
+            const ratio = audio.currentTime / audio.duration;
+            const startAngle = 5;
+            const endAngle = 35;
+            setTonearmAngle(startAngle + (ratio * (endAngle - startAngle)));
+        };
+
+        const togglePlayState = (forceState = null) => {
+            if (playlist.length === 0) return alert("Please choose a track from the Library first.");
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+            isPlaying = forceState !== null ? forceState : !isPlaying;
+
+            if (isPlaying) {
+                audio.play().catch(e => console.error(e));
+                vinylView.classList.add('is-playing-state');
+                cassetteView.classList.add('is-playing-state');
+                syncTonearmForPlayback();
+
+                document.querySelectorAll('.js-btn-play').forEach(btn => {
+                    if (btn.classList.contains('neu-flat')) {
+                        btn.classList.remove('neu-flat');
+                        btn.classList.add('neu-pressed', 'active-state');
+                        btn.querySelector('.js-play-text').textContent = "PAUSE";
+                    }
+                    if (btn.classList.contains('js-cassette-play-btn')) btn.classList.add('is-active-btn');
+                    btn.querySelector('.icon-play').classList.add('hidden');
+                    btn.querySelector('.icon-pause').classList.remove('hidden');
+                });
+            } else {
+                audio.pause();
+                vinylView.classList.remove('is-playing-state');
+                cassetteView.classList.remove('is-playing-state');
+                setTonearmAngle(-25);
+                const transform = window.getComputedStyle(vinylRecord).getPropertyValue('transform');
+                if (transform !== 'none') vinylRecord.style.transform = transform;
+
+                document.querySelectorAll('.js-btn-play').forEach(btn => {
+                    if (btn.classList.contains('neu-pressed')) {
+                        btn.classList.remove('neu-pressed', 'active-state');
+                        btn.classList.add('neu-flat');
+                        btn.querySelector('.js-play-text').textContent = "PLAY";
+                    }
+                    if (btn.classList.contains('js-cassette-play-btn')) btn.classList.remove('is-active-btn');
+                    btn.querySelector('.icon-play').classList.remove('hidden');
+                    btn.querySelector('.icon-pause').classList.add('hidden');
+                });
+            }
+        };
+
+        function loadTrack(index) {
+            if (index < 0 || index >= playlist.length) return;
+
+            const track = playlist[index];
+            audio.src = track.audio_url;
+
+            document.querySelectorAll('.js-queue-counter').forEach(el => {
+                el.textContent = `${index + 1}/${playlist.length}`;
+                el.classList.remove('hidden');
+            });
+
+            vinylRecord.style.transform = 'none';
+            document.querySelectorAll('.js-progress-fill').forEach(bar => bar.style.width = '0%');
+            updateAllText('.js-time-current', '0:00');
+
+            updateAllText('.js-track-title', (track.title || 'Untitled').toUpperCase());
+            updateAllText('.js-track-artist', (track.artist || 'Unknown Artist').toUpperCase());
+
+            if (track.cover_url) {
+                coverArt.hidden = false;
+                coverArt.src = track.cover_url;
+            } else {
+                resetCoverArt();
+            }
+
+            if (activeTab === 'library') renderLibrary();
+            togglePlayState(true);
+        }
+
+        function resetCoverArt() {
+            coverArt.src = DEFAULT_COVER;
+            coverArt.hidden = true;
+            updateNeumorphicPalette(224, 229, 236);
+        }
+
+        function prevTrack() {
+            if (audio.currentTime > 3) {
+                audio.currentTime = 0;
+            } else if (currentIndex > 0) {
+                currentIndex--;
+                loadTrack(currentIndex);
+            }
+        }
+
+        function nextTrack() {
+            if (currentIndex < playlist.length - 1) {
+                currentIndex++;
+                loadTrack(currentIndex);
+            } else {
+                audio.currentTime = 0;
+                togglePlayState(false);
+            }
+        }
+
+        function setAuthMode(mode) {
+            authMode = mode;
+            document.getElementById('loginModeBtn').classList.toggle('active', mode === 'login');
+            document.getElementById('signupModeBtn').classList.toggle('active', mode === 'signup');
+            document.getElementById('authUsername').style.display = mode === 'signup' ? 'block' : 'none';
+            document.getElementById('authSubmitBtn').textContent = mode === 'signup' ? 'Sign Up' : 'Log In';
+            document.getElementById('authHint').textContent = mode === 'signup' ?
+                'Already have an account? Switch to Log In.' :
+                'New here? Switch to Sign Up to create an account and start uploading tracks to the shared library.';
+            const errorEl = document.getElementById('authError');
+            errorEl.textContent = '';
+            errorEl.style.color = '';
+        }
+
+        async function onLoggedIn(newSession) {
+            session = newSession;
+            document.getElementById('authScreen').style.display = 'none';
+            document.getElementById('appWrapper').style.display = 'flex';
+            const username = session.user.user_metadata?.username || session.user.email.split('@')[0];
+            document.getElementById('userLabel').textContent = username;
+            await fetchLibrary();
+        }
+
+        function handleLogout() {
+            if (!supabaseClient) return;
+            supabaseClient.auth.signOut().then(() => {
+                session = null;
+                playlist = [];
+                currentIndex = 0;
+                isPlaying = false;
+                audio.pause();
+                audio.removeAttribute('src');
+                document.getElementById('appWrapper').style.display = 'none';
+                document.getElementById('authScreen').style.display = 'flex';
+                document.getElementById('authEmail').value = '';
+                document.getElementById('authPassword').value = '';
+                switchTab('player');
+            });
+        }
+
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorEl = document.getElementById('authError');
+            const submitBtn = document.getElementById('authSubmitBtn');
+            errorEl.style.color = '';
+            errorEl.textContent = '';
+
+            if (!supabaseClient) {
+                errorEl.textContent =
+                    "Supabase isn't configured yet — add your project URL and anon key near the top of the <script> section.";
+                return;
+            }
+
+            const email = document.getElementById('authEmail').value.trim();
+            const password = document.getElementById('authPassword').value;
+            const username = document.getElementById('authUsername').value.trim();
+            const originalLabel = submitBtn.textContent;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = authMode === 'signup' ? 'Signing up…' : 'Logging in…';
+
+            try {
+                if (authMode === 'signup') {
+                    if (!username) { errorEl.textContent = 'Please choose a display name.'; return; }
+                    const { data, error } = await supabaseClient.auth.signUp({
+                        email,
+                        password,
+                        options: { data: { username } }
+                    });
+                    if (error) throw error;
+                    if (data.session) {
+                        await onLoggedIn(data.session);
+                    } else {
+                        errorEl.style.color = '#38a169';
+                        errorEl.textContent = 'Account created! Check your email to confirm, then log in.';
+                        setAuthMode('login');
+                    }
+                } else {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    await onLoggedIn(data.session);
+                }
+            } catch (err) {
+                errorEl.textContent = err.message || 'Something went wrong.';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = authMode === 'signup' ? 'Sign Up' : 'Log In';
+            }
+        });
+
+        (async function bootstrapAuth() {
+            if (!supabaseClient) return;
+            const { data } = await supabaseClient.auth.getSession();
+            if (data.session) await onLoggedIn(data.session);
+
+            supabaseClient.auth.onAuthStateChange((event) => {
+                if (event === 'SIGNED_OUT') session = null;
+            });
+        })();
+
+        function switchTab(tab) {
+            activeTab = tab;
+            document.getElementById('playerSection').style.display = tab === 'player' ? 'block' : 'none';
+            document.getElementById('librarySection').style.display = tab === 'library' ? 'flex' : 'none';
+            document.getElementById('uploadSection').style.display = tab === 'upload' ? 'flex' : 'none';
+
+            document.getElementById('tabBtnPlayer').classList.toggle('active', tab === 'player');
+            document.getElementById('tabBtnLibrary').classList.toggle('active', tab === 'library');
+            document.getElementById('tabBtnUpload').classList.toggle('active', tab === 'upload');
+
+            if (tab === 'library') fetchLibrary();
+            if (tab === 'upload') resetUploadForm();
+        }
+
+        async function fetchLibrary() {
+            const listEl = document.getElementById('libraryList');
+            if (!supabaseClient) {
+                listEl.innerHTML =
+                    `<div class="library-empty">Supabase isn't configured yet — add your project URL and anon key near the top of the &lt;script&gt; section.</div>`;
+                return;
+            }
+            if (!session) return;
+
+            const { data, error } = await supabaseClient
+                .from('songs')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                listEl.innerHTML =
+                `<div class="library-empty">Couldn't load the library: ${escapeHtml(error.message)}</div>`;
+                return;
+            }
+            librarySongs = data || [];
+            renderLibrary();
+        }
+
+        function renderLibrary() {
+            const listEl = document.getElementById('libraryList');
+            const searchInput = document.getElementById('librarySearch');
+            const query = (searchInput.value || '').toLowerCase();
+
+            const filtered = librarySongs.filter(s =>
+                !query ||
+                (s.title || '').toLowerCase().includes(query) ||
+                (s.artist || '').toLowerCase().includes(query) ||
+                (s.uploader_name || '').toLowerCase().includes(query)
+            );
+
+            if (filtered.length === 0) {
+                listEl.innerHTML =
+                    `<div class="library-empty">${librarySongs.length === 0 ? 'No tracks yet — be the first to upload one!' : 'No tracks match your search.'}</div>`;
+                return;
+            }
+
+            listEl.innerHTML = filtered.map((song) => {
+                const realIndex = librarySongs.indexOf(song);
+                const nowPlaying = playlist === librarySongs && currentIndex === realIndex;
+                const durationLabel = song.duration ? formatTime(song.duration) : '';
+                return `
+                        <div class="song-row ${nowPlaying ? 'playing' : ''}">
+                            <img class="song-cover" src="${song.cover_url || DEFAULT_COVER}" alt="">
+                            <div class="song-meta">
+                                <div class="song-title">${escapeHtml(song.title)}</div>
+                                <div class="song-sub">${escapeHtml(song.artist)} · uploaded by ${escapeHtml(song.uploader_name)}${durationLabel ? ' · ' + durationLabel : ''}</div>
+                            </div>
+                            <button class="song-play-btn" onclick="playFromLibrary(${realIndex})" title="Play">
+                                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            </button>
+                        </div>
+                    `;
+            }).join('');
+        }
+
+        function playFromLibrary(index) {
+            playlist = librarySongs;
+            currentIndex = index;
+            initAudioContext();
+            loadTrack(currentIndex);
+            switchTab('player');
+        }
+
+        document.getElementById('uploadFileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('audio/')) { alert('Please choose an audio file.'); return; }
+
+            uploadPickedFile = file;
+            uploadCoverBlob = null;
+            uploadDuration = null;
+
+            document.getElementById('uploadDropzoneTitle').textContent = file.name;
+            document.getElementById('uploadFileName').textContent = file.name;
+            document.getElementById('uploadFileDuration').textContent = 'Reading track info…';
+            document.getElementById('uploadPreview').style.display = 'flex';
+            document.getElementById('uploadCoverPreview').src = DEFAULT_COVER;
+            document.getElementById('uploadSubmitBtn').disabled = false;
+            document.getElementById('uploadTitle').value = file.name.replace(/\.[^/.]+$/, "");
+            document.getElementById('uploadArtist').value = '';
+
+            const tempUrl = URL.createObjectURL(file);
+            const tempAudio = new Audio();
+            tempAudio.preload = 'metadata';
+            tempAudio.src = tempUrl;
+            tempAudio.addEventListener('loadedmetadata', () => {
+                uploadDuration = tempAudio.duration;
+                document.getElementById('uploadFileDuration').textContent = formatTime(uploadDuration);
+                URL.revokeObjectURL(tempUrl);
+            });
+
+            if (window.jsmediatags) {
+                window.jsmediatags.read(file, {
+                    onSuccess: (tag) => {
+                        const tags = tag.tags;
+                        if (tags.title) document.getElementById('uploadTitle').value = tags.title;
+                        if (tags.artist) document.getElementById('uploadArtist').value = tags.artist;
+                        if (tags.picture) {
+                            const { data, format } = tags.picture;
+                            const bytes = new Uint8Array(data);
+                            uploadCoverBlob = new Blob([bytes], { type: format });
+                            document.getElementById('uploadCoverPreview').src = URL.createObjectURL(uploadCoverBlob);
+                        }
+                    },
+                    onError: () => {}
+                });
+            }
+        });
+
+        function resetUploadForm() {
+            uploadPickedFile = null;
+            uploadCoverBlob = null;
+            uploadDuration = null;
+            document.getElementById('uploadFileInput').value = '';
+            document.getElementById('uploadDropzoneTitle').textContent = 'Choose an audio file';
+            document.getElementById('uploadPreview').style.display = 'none';
+            document.getElementById('uploadTitle').value = '';
+            document.getElementById('uploadArtist').value = '';
+            document.getElementById('uploadSubmitBtn').disabled = true;
+            const statusEl = document.getElementById('uploadStatus');
+            statusEl.textContent = '';
+            statusEl.className = 'upload-status';
+        }
+
+        async function handleUploadSubmit() {
+            const statusEl = document.getElementById('uploadStatus');
+            const submitBtn = document.getElementById('uploadSubmitBtn');
+
+            if (!supabaseClient || !session) {
+                statusEl.className = 'upload-status error';
+                statusEl.textContent =
+                "You need to be logged in to upload — and Supabase needs to be configured.";
+                return;
+            }
+            if (!uploadPickedFile) {
+                statusEl.className = 'upload-status error';
+                statusEl.textContent = 'Choose an audio file first.';
+                return;
+            }
+            if (uploadPickedFile.size > MAX_UPLOAD_MB * 1024 * 1024) {
+                statusEl.className = 'upload-status error';
+                statusEl.textContent = `That file is over ${MAX_UPLOAD_MB}MB — please pick a smaller one.`;
+                return;
+            }
+
+            const title = document.getElementById('uploadTitle').value.trim() || 'Untitled';
+            const artist = document.getElementById('uploadArtist').value.trim() || 'Unknown Artist';
+            const uploaderName = session.user.user_metadata?.username || session.user.email.split('@')[0];
+
+            submitBtn.disabled = true;
+            statusEl.className = 'upload-status';
+            statusEl.textContent = 'Uploading audio…';
+
+            try {
+                const ext = (uploadPickedFile.name.split('.').pop() || 'mp3').toLowerCase();
+                const audioPath = `${session.user.id}/${crypto.randomUUID()}.${ext}`;
+
+                const { error: audioErr } = await supabaseClient.storage
+                    .from('audio-files')
+                    .upload(audioPath, uploadPickedFile, { cacheControl: '3600', upsert: false });
+                if (audioErr) throw audioErr;
+
+                const audioUrl = supabaseClient.storage.from('audio-files').getPublicUrl(audioPath).data.publicUrl;
+
+                let coverUrl = null;
+                if (uploadCoverBlob) {
+                    statusEl.textContent = 'Uploading cover art…';
+                    const coverPath = `${session.user.id}/${crypto.randomUUID()}.jpg`;
+                    const { error: coverErr } = await supabaseClient.storage
+                        .from('cover-art')
+                        .upload(coverPath, uploadCoverBlob, { cacheControl: '3600', upsert: false });
+                    if (!coverErr) {
+                        coverUrl = supabaseClient.storage.from('cover-art').getPublicUrl(coverPath).data.publicUrl;
+                    }
+                }
+
+                statusEl.textContent = 'Saving to the library…';
+                const { error: insertErr } = await supabaseClient.from('songs').insert({
+                    title,
+                    artist,
+                    uploader_id: session.user.id,
+                    uploader_name: uploaderName,
+                    audio_url: audioUrl,
+                    cover_url: coverUrl,
+                    duration: uploadDuration || null
+                });
+                if (insertErr) throw insertErr;
+
+                statusEl.className = 'upload-status success';
+                statusEl.textContent = `"${title}" is live in the library!`;
+                resetUploadForm();
+                await fetchLibrary();
+                setTimeout(() => switchTab('library'), 900);
+            } catch (err) {
+                statusEl.className = 'upload-status error';
+                statusEl.textContent = err.message || 'Upload failed — please try again.';
+                submitBtn.disabled = false;
+            }
+        }
+
+        // ── VOLUME SLIDERS ──
+        document.querySelectorAll('.js-volume-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const val = e.target.value;
+                audio.volume = val;
+                document.querySelectorAll('.js-volume-slider').forEach(s => s.value = val);
+            });
+        });
+
+        // ── PLAY / PAUSE ──
+        document.querySelectorAll('.js-btn-play').forEach(btn => {
+            btn.addEventListener('click', (e) => { e.preventDefault();
+                initAudioContext();
+                togglePlayState(); });
+        });
+
+        document.querySelectorAll('.js-btn-prev').forEach(btn => {
+            btn.addEventListener('click', (e) => { e.preventDefault();
+                prevTrack(); });
+        });
+
+        document.querySelectorAll('.js-btn-next').forEach(btn => {
+            btn.addEventListener('click', (e) => { e.preventDefault();
+                nextTrack(); });
+        });
+
+        vinylRecord.addEventListener('click', (e) => {
+            e.preventDefault();
+            initAudioContext();
+            togglePlayState();
+        });
+
+        if (turntableArea) {
+            turntableArea.addEventListener('click', (e) => {
+                if (e.target === turntableArea) {
+                    e.preventDefault();
+                    initAudioContext();
+                    togglePlayState();
+                }
+            });
+        }
+
+        // ── AUDIO EVENTS ──
+        audio.addEventListener('timeupdate', () => {
+            if (!audio.duration) return;
+            const ratio = audio.currentTime / audio.duration;
+            document.querySelectorAll('.js-progress-fill').forEach(bar => bar.style.width = `${ratio * 100}%`);
+            updateAllText('.js-time-current', formatTime(audio.currentTime));
+
+            if (currentTheme === 'vinyl') {
+                syncTonearmForPlayback();
+            }
+        });
+
+        audio.addEventListener('loadedmetadata', () => {
+            updateAllText('.js-time-duration', formatTime(audio.duration));
+        });
+
+        audio.addEventListener('ended', () => {
+            setTonearmAngle(-25);
+            vinylRecord.style.transform = 'none';
+            nextTrack();
+        });
+
+        document.querySelectorAll('.js-progress-bg').forEach(bg => {
+            bg.addEventListener('click', (e) => {
+                if (playlist.length === 0 || !audio.duration) return;
+                const rect = bg.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / rect.width;
+                audio.currentTime = x * audio.duration;
+            });
+            // Touch support for progress bar
+            bg.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (playlist.length === 0 || !audio.duration) return;
+                const touch = e.touches[0];
+                const rect = bg.getBoundingClientRect();
+                const x = (touch.clientX - rect.left) / rect.width;
+                audio.currentTime = Math.max(0, Math.min(1, x)) * audio.duration;
+            }, { passive: false });
+        });
+    </script>
+</body>
+</html>
