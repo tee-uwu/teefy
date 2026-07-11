@@ -43,3 +43,5 @@ You will need a Supabase account and project to host the database and audio file
 *   **AI Lore Feature**: The codebase includes styles for a lore modal that requires a Google Gemini API key to function.
 *   **Password Reset**: Supabase supports password resets natively, but the UI flow for this feature is not yet built into the frontend application.
 *   **Track Deletion**: Database policies are already configured to allow users to delete their own tracks. However, the frontend currently lacks a delete button in the Library UI to trigger this action.
+
+![image alt](https://github.com/tee-uwu/teefy/blob/3ef3716a17e6f61f3062032dff49925879a66f48/c6a375e4-2b00-48e9-866c-28742cb99f68.png)
