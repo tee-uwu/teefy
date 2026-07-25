@@ -1423,12 +1423,12 @@
             }
         }
 
-        .auth-logo {
-            font-family: 'Black Ops One', cursive;
-            font-size: clamp(1.8rem, 8vw, 2.4rem);
-            letter-spacing: 2px;
-            color: var(--text-main);
-            margin: 0;
+        .auth-logo-img {
+            max-width: 180px;
+            height: auto;
+            margin: 0 auto;
+            display: block;
+            filter: drop-shadow(2px 4px 6px var(--shadow-dark));
         }
 
         .auth-tagline {
@@ -2062,11 +2062,7 @@
             border: 2px solid #1e293b;
         }
 
-        body.theme-cassette .auth-logo {
-            font-family: 'Black Ops One', cursive;
-            color: #4ade80;
-            text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
-        }
+
 
         body.theme-cassette .song-title {
             font-family: 'Share Tech Mono', monospace;
@@ -2344,8 +2340,8 @@
                 gap: 12px;
             }
 
-            .auth-logo {
-                font-size: 1.6rem;
+            .auth-logo-img {
+                max-width: 140px;
             }
 
             .user-bar {
