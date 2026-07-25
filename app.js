@@ -442,14 +442,12 @@ const audio = document.getElementById('audioPlayer');
 
         function nextTrack() {
             if (userQueue.length > 0) {
-                // Play from queue
                 const nextSong = userQueue.shift();
                 playlist = [nextSong];
                 currentIndex = 0;
                 renderQueue();
                 loadTrack(currentIndex);
             } else if (playlist.length > 0) {
-                // Play from current playlist (library)
                 currentIndex = (currentIndex + 1) % playlist.length;
                 loadTrack(currentIndex);
             }
