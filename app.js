@@ -131,13 +131,9 @@ function showToast(msg) {
         function switchVinylStyle(styleName) {
             currentVinylStyle = styleName;
             const area = document.getElementById('turntableArea');
-            if (styleName === 'sleeve') {
-                area.classList.add('style-sleeve');
-                area.classList.remove('style-classic');
-            } else {
-                area.classList.add('style-classic');
-                area.classList.remove('style-sleeve');
-            }
+            area.classList.remove('style-classic', 'style-sleeve', 'style-widget-h', 'style-widget-square');
+            area.classList.add(`style-${styleName}`);
+            
             document.querySelectorAll('.style-btn').forEach(btn => btn.classList.remove('active'));
             const activeBtn = document.querySelector(`.style-btn[data-style="${styleName}"]`);
             if (activeBtn) activeBtn.classList.add('active');

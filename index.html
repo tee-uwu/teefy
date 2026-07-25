@@ -62,9 +62,11 @@
             <button class="theme-btn vinyl-active" onclick="switchTheme('vinyl')">Vinyl</button>
             <button class="theme-btn" onclick="switchTheme('cassette')">Cassette</button>
         </div>
-        <div class="vinyl-style-toggle" id="vinylStyleToggle" style="display:flex; justify-content:center; gap: 8px; margin-bottom: 12px; transition: opacity 0.3s;">
+        <div class="vinyl-style-toggle" id="vinylStyleToggle">
             <button class="style-btn active" data-style="classic" onclick="switchVinylStyle('classic')">Classic</button>
             <button class="style-btn" data-style="sleeve" onclick="switchVinylStyle('sleeve')">Sleeve</button>
+            <button class="style-btn" data-style="widget-h" onclick="switchVinylStyle('widget-h')">Mini</button>
+            <button class="style-btn" data-style="widget-square" onclick="switchVinylStyle('widget-square')">Square</button>
         </div>
 
         <div class="tab-bar">
@@ -80,6 +82,17 @@
                 <div class="player-container neu-flat" id="vinylBase">
 
                     <div class="turntable-area style-classic" id="turntableArea">
+                        <div class="widget-info" id="widgetInfo" style="display:none;">
+                            <div class="widget-text">
+                                <div class="widget-title js-track-title" id="widgetTitle">Song Title</div>
+                                <div class="widget-artist js-track-artist" id="widgetArtist">Artist Name</div>
+                            </div>
+                            <div class="widget-controls">
+                                <button class="widget-btn">🤍</button>
+                                <button class="widget-btn" onclick="togglePlay()">⏯</button>
+                                <button class="widget-btn" onclick="playNext()">⏭</button>
+                            </div>
+                        </div>
                         <div class="vinyl-sleeve" id="vinylSleeve">
                             <img alt="Album Cover Sleeve" id="sleeveCover" crossorigin="anonymous">
                         </div>
