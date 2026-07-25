@@ -955,6 +955,9 @@ function showToast(msg) {
             slider.addEventListener('input', (e) => {
                 const val = e.target.value;
                 audio.volume = val;
+                if (typeof ytPlayer !== 'undefined' && ytPlayer && ytPlayer.setVolume) {
+                    ytPlayer.setVolume(val * 100);
+                }
                 document.querySelectorAll('.js-volume-slider').forEach(s => s.value = val);
             });
         });

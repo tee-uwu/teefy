@@ -44,6 +44,8 @@
         }
 
         body.theme-cassette {
+            --text-main: #f1f5f9;
+            --text-muted: #cbd5e1;
             background:
                 radial-gradient(circle at 50% 20%, #401a52 0%, #150a1f 60%, #0a050f 100%),
                 repeating-linear-gradient(0deg, transparent, transparent 29px, rgba(0, 255, 255, 0.03) 30px),
