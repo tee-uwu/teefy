@@ -983,7 +983,7 @@ async function updateProfile() {
 }
 
 // --- YOUTUBE LOGIC ---
-const YOUTUBE_API_KEY = 'YOUR_YOUTUBE_API_KEY_HERE';
+const YOUTUBE_API_KEY = 'AIzaSyCQqCAWhrCeWbghXAgN9yVSvz4Tlra-2hI';
 let ytPlayer = null;
 let ytReady = false;
 
