@@ -342,7 +342,11 @@ const audio = document.getElementById('audioPlayer');
             isPlaying = forceState !== null ? forceState : !isPlaying;
 
             if (isPlaying) {
-                audio.play().catch(e => console.error(e));
+                if (playlist[currentIndex]?.is_youtube && ytReady) {
+            ytPlayer.playVideo();
+        } else {
+            audio.play().catch(e => console.error(e));
+        }
                 vinylView.classList.add('is-playing-state');
                 cassetteView.classList.add('is-playing-state');
                 syncTonearmForPlayback();
@@ -358,7 +362,11 @@ const audio = document.getElementById('audioPlayer');
                     btn.querySelector('.icon-pause').classList.remove('hidden');
                 });
             } else {
-                audio.pause();
+                if (playlist[currentIndex]?.is_youtube && ytReady) {
+            ytPlayer.pauseVideo();
+        } else {
+            audio.pause();
+        }
                 vinylView.classList.remove('is-playing-state');
                 cassetteView.classList.remove('is-playing-state');
                 setTonearmAngle(-25);
@@ -382,7 +390,13 @@ const audio = document.getElementById('audioPlayer');
             if (index < 0 || index >= playlist.length) return;
 
             const track = playlist[index];
+            if (track.is_youtube && ytReady) {
+            audio.removeAttribute('src'); // Stop normal audio
+            ytPlayer.loadVideoById(track.yt_id);
+        } else {
+            if (ytReady && ytPlayer.stopVideo) ytPlayer.stopVideo();
             audio.src = track.audio_url;
+        }
 
             // ── increment play count ──
             if (track.id) incrementPlayCount(track.id);
@@ -465,7 +479,11 @@ const audio = document.getElementById('audioPlayer');
                 playlist = [];
                 currentIndex = 0;
                 isPlaying = false;
-                audio.pause();
+                if (playlist[currentIndex]?.is_youtube && ytReady) {
+            ytPlayer.pauseVideo();
+        } else {
+            audio.pause();
+        }
                 audio.removeAttribute('src');
                 document.getElementById('appWrapper').style.display = 'none';
                 document.getElementById('authScreen').style.display = 'flex';
@@ -580,10 +598,13 @@ const audio = document.getElementById('audioPlayer');
             document.getElementById('playerSection').style.display = tab === 'player' ? 'block' : 'none';
             document.getElementById('librarySection').style.display = tab === 'library' ? 'flex' : 'none';
             document.getElementById('uploadSection').style.display = tab === 'upload' ? 'flex' : 'none';
+            if (document.getElementById('profileSection')) document.getElementById('profileSection').style.display = tab === 'profile' ? 'flex' : 'none';
+            if (document.getElementById('youtubeSection')) document.getElementById('youtubeSection').style.display = tab === 'youtube' ? 'flex' : 'none';
 
             document.getElementById('tabBtnPlayer').classList.toggle('active', tab === 'player');
             document.getElementById('tabBtnLibrary').classList.toggle('active', tab === 'library');
             document.getElementById('tabBtnUpload').classList.toggle('active', tab === 'upload');
+            if (document.getElementById('tabBtnYoutube')) document.getElementById('tabBtnYoutube').classList.toggle('active', tab === 'youtube');
 
             if (tab === 'library') fetchLibrary();
             if (tab === 'upload') resetUploadForm();
@@ -933,3 +954,118 @@ const audio = document.getElementById('audioPlayer');
                 audio.currentTime = Math.max(0, Math.min(1, x)) * audio.duration;
             }, { passive: false });
         });
+
+// --- PROFILE LOGIC ---
+async function updateProfile() {
+    const newName = document.getElementById('profileNameInput').value.trim();
+    const msgEl = document.getElementById('profileMessage');
+    if (!newName) {
+        msgEl.style.color = '#e53e3e';
+        msgEl.textContent = 'Please enter a valid name.';
+        return;
+    }
+    if (!supabaseClient || !session) return;
+    msgEl.style.color = 'var(--text-main)';
+    msgEl.textContent = 'Saving...';
+    try {
+        const { data, error } = await supabaseClient.auth.updateUser({
+            data: { username: newName }
+        });
+        if (error) throw error;
+        session = data.session || data.user;
+        document.getElementById('userLabel').textContent = newName;
+        msgEl.style.color = '#38a169';
+        msgEl.textContent = 'Profile updated successfully!';
+    } catch (err) {
+        msgEl.style.color = '#e53e3e';
+        msgEl.textContent = err.message || 'Error updating profile.';
+    }
+}
+
+// --- YOUTUBE LOGIC ---
+const YOUTUBE_API_KEY = 'YOUR_YOUTUBE_API_KEY_HERE';
+let ytPlayer = null;
+let ytReady = false;
+
+// Load YouTube API
+const tag = document.createElement('script');
+tag.src = "https://www.youtube.com/iframe_api";
+const firstScriptTag = document.getElementsByTagName('script')[0];
+firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+window.onYouTubeIframeAPIReady = function() {
+    ytPlayer = new YT.Player('youtubePlayer', {
+        height: '100',
+        width: '100',
+        videoId: '',
+        playerVars: { 'playsinline': 1, 'controls': 0, 'disablekb': 1 },
+        events: {
+            'onReady': () => ytReady = true,
+            'onStateChange': onYtStateChange
+        }
+    });
+};
+
+function onYtStateChange(event) {
+    if (event.data === YT.PlayerState.ENDED) {
+        nextTrack();
+    }
+}
+
+async function searchYoutube() {
+    const query = document.getElementById('youtubeSearchInput').value.trim();
+    const listEl = document.getElementById('youtubeList');
+    if (!query) return;
+    if (YOUTUBE_API_KEY === 'YOUR_YOUTUBE_API_KEY_HERE') {
+        listEl.innerHTML = '<div class="library-empty">Please set your YouTube API Key in app.js first.</div>';
+        return;
+    }
+    
+    listEl.innerHTML = '<div class="library-empty">Searching...</div>';
+    try {
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&key=${YOUTUBE_API_KEY}`);
+        const data = await res.json();
+        
+        if (!data.items || data.items.length === 0) {
+            listEl.innerHTML = '<div class="library-empty">No music found. Try another search.</div>';
+            return;
+        }
+        
+        listEl.innerHTML = data.items.map((item, index) => {
+            const ytTrack = {
+                title: item.snippet.title,
+                artist: item.snippet.channelTitle,
+                cover_url: item.snippet.thumbnails.high.url,
+                yt_id: item.id.videoId,
+                is_youtube: true
+            };
+            // Safely store in a global map or data attribute
+            window._ytResults = window._ytResults || [];
+            window._ytResults[index] = ytTrack;
+            
+            return `
+                <div class="song-row">
+                    <img class="song-cover" src="${ytTrack.cover_url}" alt="">
+                    <div class="song-meta">
+                        <div class="song-title">${escapeHtml(ytTrack.title)}</div>
+                        <div class="song-sub">${escapeHtml(ytTrack.artist)}</div>
+                    </div>
+                    <button class="song-play-btn" onclick="playYoutubeResult(${index})" title="Play">
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        listEl.innerHTML = `<div class="library-empty">Error searching YouTube: ${err.message}</div>`;
+    }
+}
+
+function playYoutubeResult(index) {
+    const ytTrack = window._ytResults[index];
+    if (!ytTrack) return;
+    playlist = [ytTrack];
+    currentIndex = 0;
+    loadTrack(currentIndex);
+    switchTab('player');
+}
