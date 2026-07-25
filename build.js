@@ -14,4 +14,18 @@ files.forEach(file => {
     }
 });
 
+const assetsDir = path.join(__dirname, 'assets');
+const distAssetsDir = path.join(dist, 'assets');
+if (fs.existsSync(assetsDir)) {
+    if (!fs.existsSync(distAssetsDir)) {
+        fs.mkdirSync(distAssetsDir);
+    }
+    fs.readdirSync(assetsDir).forEach(file => {
+        const srcPath = path.join(assetsDir, file);
+        if (fs.lstatSync(srcPath).isFile()) {
+            fs.copyFileSync(srcPath, path.join(distAssetsDir, file));
+        }
+    });
+}
+
 console.log('Build completed: Assets copied to dist/');
