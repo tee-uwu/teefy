@@ -68,6 +68,7 @@
             <button class="tab-btn" id="tabBtnLibrary" onclick="switchTab('library')">Library</button>
             <button class="tab-btn" id="tabBtnUpload" onclick="switchTab('upload')">Upload</button>
                 <button class="tab-btn" id="tabBtnYoutube" onclick="switchTab('youtube')">YouTube</button>
+            <button class="tab-btn" id="tabBtnQueue" onclick="switchTab('queue')">Queue</button>
         </div>
 
         <div id="playerSection">
@@ -294,7 +295,18 @@
             <div class="upload-status" id="uploadStatus"></div>
         </div>
 
-        <div id="profileSection" class="library-panel" style="display:none;">
+        
+        <div id="queueSection" class="library-panel" style="display:none;">
+            <div class="track-meta-card" style="margin-top: 10px; width: 100%;">
+                <h3>Up Next</h3>
+                <p style="margin-bottom:15px; opacity:0.8; text-transform:none;">Songs in your play queue</p>
+                <div class="library-list" id="queueList">
+                    <div class="library-empty">Queue is empty.</div>
+                </div>
+            </div>
+        </div>
+        
+<div id="profileSection" class="library-panel" style="display:none;">
             <div class="track-meta-card" style="margin-top: 10px; width: 100%;">
                 <h3>Update Profile</h3>
                 <p style="margin-bottom:15px; opacity:0.8; text-transform:none;">Change your display name below.</p>

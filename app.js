@@ -26,6 +26,7 @@ const audio = document.getElementById('audioPlayer');
 
         let isPlaying = false;
         let playlist = [];
+        let userQueue = [];
         let currentIndex = 0;
         let currentTheme = 'vinyl';
 
@@ -440,12 +441,17 @@ const audio = document.getElementById('audioPlayer');
         }
 
         function nextTrack() {
-            if (currentIndex < playlist.length - 1) {
-                currentIndex++;
+            if (userQueue.length > 0) {
+                // Play from queue
+                const nextSong = userQueue.shift();
+                playlist = [nextSong];
+                currentIndex = 0;
+                renderQueue();
                 loadTrack(currentIndex);
-            } else {
-                audio.currentTime = 0;
-                togglePlayState(false);
+            } else if (playlist.length > 0) {
+                // Play from current playlist (library)
+                currentIndex = (currentIndex + 1) % playlist.length;
+                loadTrack(currentIndex);
             }
         }
 
@@ -600,11 +606,13 @@ const audio = document.getElementById('audioPlayer');
             document.getElementById('uploadSection').style.display = tab === 'upload' ? 'flex' : 'none';
             if (document.getElementById('profileSection')) document.getElementById('profileSection').style.display = tab === 'profile' ? 'flex' : 'none';
             if (document.getElementById('youtubeSection')) document.getElementById('youtubeSection').style.display = tab === 'youtube' ? 'flex' : 'none';
+            if (document.getElementById('queueSection')) document.getElementById('queueSection').style.display = tab === 'queue' ? 'flex' : 'none';
 
             document.getElementById('tabBtnPlayer').classList.toggle('active', tab === 'player');
             document.getElementById('tabBtnLibrary').classList.toggle('active', tab === 'library');
             document.getElementById('tabBtnUpload').classList.toggle('active', tab === 'upload');
             if (document.getElementById('tabBtnYoutube')) document.getElementById('tabBtnYoutube').classList.toggle('active', tab === 'youtube');
+              if (document.getElementById('tabBtnQueue')) document.getElementById('tabBtnQueue').classList.toggle('active', tab === 'queue');
 
             if (tab === 'library') fetchLibrary();
             if (tab === 'upload') resetUploadForm();
@@ -668,6 +676,9 @@ const audio = document.getElementById('audioPlayer');
                             </div>
                             <div class="play-count-badge" title="Times played">${playsLabel}</div>
                             ${isOwner ? `<button class="song-delete-btn" onclick="deleteTrack('${song.id}', '${song.audio_url}', '${song.cover_url}')" title="Delete Track">🗑️</button>` : ''}
+                            <button class="btn btn-circle" style="width: 32px; height: 32px; margin-right: 8px; background: rgba(100,150,255,0.2); color: var(--text-main);" onclick="event.stopPropagation(); addToQueueFromData(\`${JSON.stringify(song).replace(/"/g, '&quot;')}\`);" title="Add to Queue">
+                                <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                            </button>
                             <button class="song-play-btn" onclick="playFromLibrary(${realIndex})" title="Play">
                                 <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                             </button>
@@ -1066,6 +1077,9 @@ async function searchYoutube() {
                         <div class="song-title">${escapeHtml(ytTrack.title)}</div>
                         <div class="song-sub">${escapeHtml(ytTrack.artist)}</div>
                     </div>
+                    <button class="btn btn-circle" style="width: 32px; height: 32px; margin-right: 8px; background: rgba(100,150,255,0.2); color: var(--text-main);" onclick="event.stopPropagation(); addToQueueFromData(\`${JSON.stringify(ytTrack).replace(/"/g, '&quot;')}\`);" title="Add to Queue">
+                        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    </button>
                     <button class="song-play-btn" onclick="playYoutubeResult(${index})" title="Play">
                         <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                     </button>
