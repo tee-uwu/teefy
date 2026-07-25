@@ -458,6 +458,10 @@ function showToast(msg) {
         };
 
         function loadTrack(index) {
+            // Immediately stop youtube if it was playing to prevent overlap
+            if (typeof ytPlayer !== 'undefined' && ytPlayer && ytPlayer.stopVideo) {
+                ytPlayer.stopVideo();
+            }
             if (index < 0 || index >= playlist.length) return;
 
             const track = playlist[index];
@@ -1104,6 +1108,12 @@ window.onYouTubeIframeAPIReady = function() {
 function onYtStateChange(event) {
     if (event.data === YT.PlayerState.ENDED) {
         nextTrack();
+    } else if (event.data === YT.PlayerState.PLAYING) {
+        isPlaying = true;
+        updatePlayBtnUI();
+    } else if (event.data === YT.PlayerState.PAUSED) {
+        isPlaying = false;
+        updatePlayBtnUI();
     }
 }
 
