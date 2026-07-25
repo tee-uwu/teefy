@@ -1103,6 +1103,32 @@ async function updateProfile() {
     }
 }
 
+async function updatePassword() {
+    const newPassword = document.getElementById('profilePasswordInput').value;
+    const msgEl = document.getElementById('profileMessage');
+    if (!newPassword || newPassword.length < 6) {
+        msgEl.style.color = '#e53e3e';
+        msgEl.textContent = 'Password must be at least 6 characters.';
+        return;
+    }
+    if (!supabaseClient || !session) return;
+    
+    msgEl.style.color = 'var(--text-main)';
+    msgEl.textContent = 'Updating password...';
+    try {
+        const { error } = await supabaseClient.auth.updateUser({
+            password: newPassword
+        });
+        if (error) throw error;
+        document.getElementById('profilePasswordInput').value = '';
+        msgEl.style.color = '#38a169';
+        msgEl.textContent = 'Password updated successfully!';
+    } catch (err) {
+        msgEl.style.color = '#e53e3e';
+        msgEl.textContent = err.message || 'Error updating password.';
+    }
+}
+
 // --- YOUTUBE LOGIC ---
 const YOUTUBE_API_KEY = 'AIzaSyCQqCAWhrCeWbghXAgN9yVSvz4Tlra-2hI';
 let ytPlayer = null;

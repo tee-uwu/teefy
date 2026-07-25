@@ -326,30 +326,19 @@
             </div>
         </div>
         
-<div id="profileSection" class="library-panel" style="display:none;">
+        <div id="profileSection" class="library-panel" style="display:none;">
             <div class="track-meta-card" style="margin-top: 10px; width: 100%;">
                 <h3>Update Profile</h3>
                 <p style="margin-bottom:15px; opacity:0.8; text-transform:none;">Change your display name below.</p>
                 <input class="neu-input" id="profileNameInput" type="text" placeholder="New Display Name" style="margin-bottom: 15px;">
                 <button class="btn-block" id="profileSaveBtn" onclick="updateProfile()">Save Changes</button>
-                <div id="profileMessage" style="margin-top: 10px; font-size: 0.8rem; text-align: center;"></div>
-            </div>
-        </div>
+                
+                <h3 style="margin-top: 25px;">Change Password</h3>
+                <p style="margin-bottom:15px; opacity:0.8; text-transform:none;">Update your account password.</p>
+                <input class="neu-input" id="profilePasswordInput" type="password" placeholder="New Password (min 6 chars)" style="margin-bottom: 15px;" minlength="6">
+                <button class="btn-block" id="profilePasswordBtn" onclick="updatePassword()">Update Password</button>
 
-        <div id="youtubeSection" class="library-panel" style="display:none;">
-            <input class="library-search" id="youtubeSearchInput" type="text" placeholder="Search YouTube for music...">
-            <button class="btn-block" id="youtubeSearchBtn" onclick="searchYoutube()" style="margin-top: 8px; margin-bottom: 8px; padding: 10px 0;">Search</button>
-            <div class="library-list" id="youtubeList">
-                <div class="library-empty">Search for a song or artist to play free music from YouTube.</div>
-            </div>
-        </div>
-<div id="profileSection" class="library-panel" style="display:none;">
-            <div class="track-meta-card" style="margin-top: 10px; width: 100%;">
-                <h3>Update Profile</h3>
-                <p style="margin-bottom:15px; opacity:0.8; text-transform:none;">Change your display name below.</p>
-                <input class="neu-input" id="profileNameInput" type="text" placeholder="New Display Name" style="margin-bottom: 15px;">
-                <button class="btn-block" id="profileSaveBtn" onclick="updateProfile()">Save Changes</button>
-                <div id="profileMessage" style="margin-top: 10px; font-size: 0.8rem; text-align: center;"></div>
+                <div id="profileMessage" style="margin-top: 15px; font-size: 0.8rem; text-align: center;"></div>
             </div>
         </div>
 
