@@ -62,6 +62,10 @@
             <button class="theme-btn vinyl-active" onclick="switchTheme('vinyl')">Vinyl</button>
             <button class="theme-btn" onclick="switchTheme('cassette')">Cassette</button>
         </div>
+        <div class="vinyl-style-toggle" id="vinylStyleToggle" style="display:flex; justify-content:center; gap: 8px; margin-bottom: 12px; transition: opacity 0.3s;">
+            <button class="style-btn active" data-style="classic" onclick="switchVinylStyle('classic')">Classic</button>
+            <button class="style-btn" data-style="sleeve" onclick="switchVinylStyle('sleeve')">Sleeve</button>
+        </div>
 
         <div class="tab-bar">
             <button class="tab-btn active" id="tabBtnPlayer" onclick="switchTab('player')">Player</button>
@@ -75,7 +79,10 @@
             <div class="view vinyl-view" id="vinylView">
                 <div class="player-container neu-flat" id="vinylBase">
 
-                    <div class="turntable-area">
+                    <div class="turntable-area style-classic" id="turntableArea">
+                        <div class="vinyl-sleeve" id="vinylSleeve">
+                            <img alt="Album Cover Sleeve" id="sleeveCover" crossorigin="anonymous">
+                        </div>
                         <div class="vinyl-record" id="vinylRecord" title="Tap to play or pause">
                             <div class="vinyl-center">
                                 <canvas id="colorCanvas" style="display:none;"></canvas>

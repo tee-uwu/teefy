@@ -6,6 +6,7 @@ const audio = document.getElementById('audioPlayer');
         const vinylBase = document.getElementById('vinylBase');
         const tonearm = document.getElementById('tonearm');
         const coverArt = document.getElementById('coverArt');
+        const sleeveCover = document.getElementById('sleeveCover');
         const turntableArea = document.querySelector('.turntable-area');
 
         const cassetteCanvas = document.getElementById('cassetteVisualizer');
@@ -126,6 +127,22 @@ function showToast(msg) {
 
         let audioCtx, analyser, dataArray, animationId;
 
+        let currentVinylStyle = 'classic';
+        function switchVinylStyle(styleName) {
+            currentVinylStyle = styleName;
+            const area = document.getElementById('turntableArea');
+            if (styleName === 'sleeve') {
+                area.classList.add('style-sleeve');
+                area.classList.remove('style-classic');
+            } else {
+                area.classList.add('style-classic');
+                area.classList.remove('style-sleeve');
+            }
+            document.querySelectorAll('.style-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.querySelector(`.style-btn[data-style="${styleName}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
         function switchTheme(themeName) {
             currentTheme = themeName;
             body.className = `theme-${themeName}`;
@@ -136,7 +153,10 @@ function showToast(msg) {
                 }
             });
 
+            const vinylStyleToggle = document.getElementById('vinylStyleToggle');
+
             if (themeName === 'vinyl') {
+                if (vinylStyleToggle) vinylStyleToggle.style.display = 'flex';
                 vinylView.style.visibility = 'visible';
                 vinylView.style.opacity = '1';
                 vinylView.style.transform = 'translateX(-50%) scale(1)';
@@ -144,6 +164,7 @@ function showToast(msg) {
                 cassetteView.style.transform = 'translateX(-50%) scale(0.95)';
                 setTimeout(() => { if (currentTheme === 'vinyl') cassetteView.style.visibility = 'hidden'; }, 600);
             } else {
+                if (vinylStyleToggle) vinylStyleToggle.style.display = 'none';
                 cassetteView.style.visibility = 'visible';
                 cassetteView.style.opacity = '1';
                 cassetteView.style.transform = 'translateX(-50%) scale(1)';
@@ -491,6 +512,7 @@ function showToast(msg) {
             if (track.cover_url) {
                 coverArt.hidden = false;
                 coverArt.src = track.cover_url;
+                sleeveCover.src = track.cover_url;
             } else {
                 resetCoverArt();
             }
@@ -501,6 +523,7 @@ function showToast(msg) {
 
         function resetCoverArt() {
             coverArt.src = DEFAULT_COVER;
+            sleeveCover.src = DEFAULT_COVER;
             coverArt.hidden = true;
             updateNeumorphicPalette(224, 229, 236);
         }

@@ -232,15 +232,84 @@
             align-items: center;
             box-shadow: inset 8px 8px 15px var(--shadow-dark),
                 inset -8px -8px 15px var(--shadow-light);
-            transition: box-shadow 1s ease;
+            transition: all 0.5s ease;
             margin: 0 auto;
             touch-action: manipulation;
             cursor: pointer;
         }
 
+        .turntable-area.style-sleeve {
+            width: min(calc(var(--turntable-size) * 1.5), 90vw);
+            aspect-ratio: auto;
+            height: min(var(--turntable-size), 60vw);
+            border-radius: 12px;
+            box-shadow: none;
+            justify-content: flex-end;
+        }
+
+        .vinyl-sleeve {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: min(var(--turntable-size), 60vw);
+            height: 100%;
+            border-radius: 4px;
+            box-shadow: 4px 4px 15px rgba(0,0,0,0.3);
+            z-index: 12;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: all 0.5s ease;
+            pointer-events: none;
+        }
+
+        .turntable-area.style-sleeve .vinyl-sleeve {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: auto;
+        }
+
+        .vinyl-sleeve img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .turntable-area.style-sleeve .vinyl-record {
+            width: min(calc(var(--turntable-size) * 0.95), 57vw);
+            height: min(calc(var(--turntable-size) * 0.95), 57vw);
+            margin-right: 0;
+            --vinyl-tx: -15%;
+            transform: translateX(var(--vinyl-tx));
+            transition: all 0.5s ease;
+            z-index: 10;
+        }
+
+        .style-btn {
+            padding: 4px 12px;
+            border-radius: 12px;
+            border: none;
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.1), inset -2px -2px 5px rgba(255, 255, 255, 0.5);
+        }
+        .style-btn.active {
+            background: var(--bg-neu);
+            color: var(--text-main);
+            box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+        }
+
         @media (min-width: 420px) {
             .turntable-area {
                 width: min(var(--turntable-size), 85vw);
+            }
+            .turntable-area.style-sleeve {
+                width: min(calc(var(--turntable-size) * 1.5), 90vw);
+                height: min(var(--turntable-size), 60vw);
             }
         }
 
@@ -251,6 +320,7 @@
             background: conic-gradient(#111 0deg, #333 45deg, #111 90deg, #333 135deg,
                     #111 180deg, #333 225deg, #111 270deg, #333 315deg, #111 360deg);
             box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(0, 0, 0, 1);
+            --vinyl-tx: 0%;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -1012,8 +1082,11 @@
         }
 
         @keyframes spin {
+            0% {
+                transform: translateX(var(--vinyl-tx, 0%)) rotate(0deg);
+            }
             100% {
-                transform: rotate(360deg);
+                transform: translateX(var(--vinyl-tx, 0%)) rotate(360deg);
             }
         }
 
