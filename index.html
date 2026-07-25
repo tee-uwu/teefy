@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Retro & Vinyl Audio Player</title>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js">
+    </script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Black+Ops+One&family=Share+Tech+Mono&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="theme-vinyl">
+
+    <audio id="audioPlayer" crossorigin="anonymous"></audio>
+
+    <div class="auth-screen" id="authScreen">
+        <div class="auth-card neu-flat">
+            <h1 class="auth-logo">TEEFY</h1>
+            <p class="auth-tagline">Upload. Share. Spin.</p>
+
+            <div class="auth-mode-switch">
+                <button class="auth-mode-btn active" id="loginModeBtn" onclick="setAuthMode('login')">Log In</button>
+                <button class="auth-mode-btn" id="signupModeBtn" onclick="setAuthMode('signup')">Sign Up</button>
+            </div>
+
+            <form class="auth-form" id="authForm">
+                <input class="neu-input" id="authUsername" type="text" placeholder="Display name"
+                    autocomplete="nickname" style="display:none;">
+                <input class="neu-input" id="authEmail" type="email" placeholder="Email" autocomplete="email" required>
+                <input class="neu-input" id="authPassword" type="password" placeholder="Password"
+                    autocomplete="current-password" required minlength="6">
+                <div class="auth-error" id="authError"></div>
+                <button type="submit" class="btn-block" id="authSubmitBtn">Log In</button>
+                <button type="button" class="btn-block" id="authGoogleBtn" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                    Continue with Google
+                </button>
+                <button type="button" class="auth-link" id="authForgotBtn" style="background:none; border:none; color:var(--text-muted); text-decoration:underline; cursor:pointer; font-size:0.75rem; font-family:inherit; padding-top: 8px;">Forgot Password?</button>
+            </form>
+            <p class="auth-hint" id="authHint">New here? Switch to Sign Up to create an account and start uploading
+                tracks to the shared library.</p>
+        </div>
+    </div>
+
+    <div class="app-wrapper" id="appWrapper" style="display:none;">
+
+        <div class="user-bar" id="userBar">
+            <span class="user-name">👤 <span id="userLabel">—</span></span>
+            <button id="logoutBtn" onclick="handleLogout()">Log Out</button>
+        </div>
+
+        <div class="theme-toggle-container">
+            <button class="theme-btn vinyl-active" onclick="switchTheme('vinyl')">Vinyl</button>
+            <button class="theme-btn" onclick="switchTheme('cassette')">Cassette</button>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab-btn active" id="tabBtnPlayer" onclick="switchTab('player')">Player</button>
+            <button class="tab-btn" id="tabBtnLibrary" onclick="switchTab('library')">Library</button>
+            <button class="tab-btn" id="tabBtnUpload" onclick="switchTab('upload')">Upload</button>
+        </div>
+
+        <div id="playerSection">
+            <div class="view vinyl-view" id="vinylView">
+                <div class="player-container neu-flat" id="vinylBase">
+
+                    <div class="turntable-area">
+                        <div class="vinyl-record" id="vinylRecord" title="Tap to play or pause">
+                            <div class="vinyl-center">
+                                <canvas id="colorCanvas" style="display:none;"></canvas>
+                                <img alt="Album Art" id="coverArt" crossorigin="anonymous" hidden>
+                                <div class="spindle"></div>
+                            </div>
+                            <div class="queue-counter hidden js-queue-counter">1/1</div>
+                        </div>
+                        <div class="tonearm-assembly" id="tonearm">
+                            <div class="tonearm-base"></div>
+                            <div class="tonearm-rod"></div>
+                            <div class="tonearm-headshell"></div>
+                        </div>
+                    </div>
+
+                    <div class="w-full px-4" style="min-width: 0;">
+                        <div class="track-meta-card">
+                            <div class="marquee-wrapper">
+                                <h3 class="marquee-content js-track-title"
+                                    style="animation-play-state: paused; transition: color 1s ease;">No Track Loaded
+                                </h3>
+                            </div>
+                            <p class="js-track-artist" style="transition: color 1s ease;">Pick a track from the Library
+                            </p>
+                            <div class="track-meta-hint">Tap the record to play or pause</div>
+                        </div>
+
+                        <div class="progress-bar-bg js-progress-bg">
+                            <div class="progress-bar-fill js-progress-fill"></div>
+                        </div>
+                        <div class="flex justify-between text-xs mb-6 font-mono font-bold"
+                            style="color: var(--text-muted); transition: color 0.6s ease;">
+                            <span class="js-time-current">0:00</span>
+                            <span class="js-time-duration">0:00</span>
+                        </div>
+
+                        <div class="flex justify-between items-center w-full">
+                            <button class="btn btn-play-pill neu-flat js-btn-play">
+                                <svg class="icon-play" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                                <svg class="icon-pause hidden" viewBox="0 0 24 24">
+                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                </svg>
+                                <span class="js-play-text">PLAY</span>
+                            </button>
+
+                            <div class="flex gap-4">
+                                <button class="btn btn-circle neu-flat js-btn-prev" title="Previous Track">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                                    </svg>
+                                </button>
+                                <button class="btn btn-circle neu-flat js-btn-next" title="Next Track">
+                                    <svg viewBox="0 0 24 24">
+                                        <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 mt-8 w-full"
+                            style="color: var(--text-muted); transition: color 0.6s ease;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
+                            </svg>
+                            <input type="range" class="volume-slider flex-1 js-volume-slider" min="0" max="1"
+                                step="0.01" value="1">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="view cassette-view" id="cassetteView">
+                <div class="cassette-player-body">
+                    <div class="cassette-screw screw-tl"></div>
+                    <div class="cassette-screw screw-tr"></div>
+                    <div class="cassette-screw screw-bl"></div>
+                    <div class="cassette-screw screw-br"></div>
+
+                    <div class="cassette-top-panel">
+                        <button class="cassette-btn" title="Browse the library" onclick="switchTab('library')">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M5 19h14v2H5v-2zm7-14l6 8H6l6-8z" />
+                            </svg>
+                        </button>
+
+                        <button class="cassette-btn js-btn-prev" title="Previous Track">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z" />
+                            </svg>
+                        </button>
+                        <button class="cassette-btn js-btn-play js-cassette-play-btn" title="Play / Pause">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="icon-play">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"
+                                class="icon-pause hidden">
+                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                            </svg>
+                        </button>
+                        <button class="cassette-btn js-btn-next" title="Next Track">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="cassette-label-area">
+                        <div class="cassette-branding">
+                            <h1>RETRO SOUND</h1>
+                            <p>STEREO COMPONENT SYSTEM</p>
+                        </div>
+
+                        <div class="cassette-door" onclick="switchTab('library')">
+                            <div class="cassette-window" id="cassetteReels">
+                                <div class="cassette-bridge"></div>
+                                <div class="tape-reels-container">
+                                    <div class="tape-reel">
+                                        <div class="reel-spokes"></div>
+                                    </div>
+                                    <div class="tape-reel">
+                                        <div class="reel-spokes"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div
+                                class="absolute bottom-2 w-full text-center text-[10px] text-gray-700 font-bold tracking-widest z-10">
+                                TAP TO BROWSE LIBRARY</div>
+                        </div>
+                    </div>
+
+                    <div class="cassette-info">
+                        <div class="flex justify-between items-end mb-1">
+                            <div class="marquee-wrapper" style="max-width: 70%;">
+                                <div class="lcd-text marquee-content js-track-title"
+                                    style="animation-play-state: paused; padding-left: 0;">INSERT TAPE</div>
+                            </div>
+                            <div class="lcd-text js-time-current" style="font-size: clamp(0.7rem, 3vw, 1rem);">0:00
+                            </div>
+                        </div>
+                        <canvas id="cassetteVisualizer" width="300" height="40"></canvas>
+                        <div class="cassette-progress-container js-progress-bg mt-1">
+                            <div class="cassette-progress-fill js-progress-fill"></div>
+                        </div>
+                        <div class="flex items-center gap-3 mt-3 w-full" style="color: var(--lcd-green)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
+                            </svg>
+                            <input type="range" class="volume-slider flex-1 js-volume-slider" min="0" max="1"
+                                step="0.01" value="1">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div id="librarySection" class="library-panel" style="display:none;">
+            <input type="text" class="neu-input library-search" id="librarySearch"
+                placeholder="Search title, artist, or uploader…" oninput="renderLibrary()">
+            <div class="library-list" id="libraryList">
+                <div class="library-empty">Loading the library…</div>
+            </div>
+        </div>
+
+        <div id="uploadSection" class="upload-panel" style="display:none;">
+            <label class="upload-dropzone" for="uploadFileInput" id="uploadDropzone">
+                <strong id="uploadDropzoneTitle">Choose an audio file</strong>
+                MP3, WAV, M4A, or OGG. We'll pull the title, artist, and cover art automatically when we can.
+            </label>
+            <input type="file" id="uploadFileInput" accept="audio/*" style="display:none;">
+
+            <div class="upload-preview" id="uploadPreview" style="display:none;">
+                <img id="uploadCoverPreview" src="" alt="Cover preview">
+                <div class="song-meta">
+                    <div class="song-title" id="uploadFileName">—</div>
+                    <div class="song-sub" id="uploadFileDuration">—</div>
+                </div>
+            </div>
+
+            <div class="upload-field-group">
+                <div class="upload-field-label">Title</div>
+                <input type="text" class="neu-input" id="uploadTitle" placeholder="Track title">
+            </div>
+            <div class="upload-field-group">
+                <div class="upload-field-label">Artist</div>
+                <input type="text" class="neu-input" id="uploadArtist" placeholder="Artist name">
+            </div>
+
+            <!-- ── CUSTOM COVER PICKER ── -->
+            <div class="upload-field-group">
+                <div class="upload-field-label">Cover Image <span style="opacity:0.6;font-weight:400;">(optional —
+                        overrides embedded art)</span></div>
+                <label class="cover-picker-label" for="uploadCoverInput">
+                    <img id="coverPickerThumb" class="cover-picker-thumb" src="" alt="">
+                    <div class="cover-picker-text">
+                        <span class="cover-picker-title" id="coverPickerTitle">Choose a cover image</span>
+                        <span class="cover-picker-sub">JPG, PNG, or WEBP</span>
+                    </div>
+                </label>
+                <input type="file" id="uploadCoverInput" accept="image/*" style="display:none;">
+            </div>
+
+            <button class="btn-block" id="uploadSubmitBtn" onclick="handleUploadSubmit()" disabled>Upload to
+                Library</button>
+            <div class="upload-status" id="uploadStatus"></div>
+        </div>
+
+    </div>
+
+    <div class="app-footer">developed by tee_hee</div>
+
+    <script src="app.js" defer></script>
+</body>
+
+</html>
