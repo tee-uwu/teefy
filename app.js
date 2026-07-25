@@ -27,6 +27,76 @@ const audio = document.getElementById('audioPlayer');
         let isPlaying = false;
         let playlist = [];
         let userQueue = [];
+
+window.addToQueueFromLibrary = function(index) {
+    const track = librarySongs[index];
+    userQueue.push(track);
+    renderQueue();
+    if (playlist.length === 0 || (!audio.src && !document.getElementById('youtubePlayer').src)) {
+        nextTrack();
+    } else {
+        showToast('Added to Queue: ' + (track.title || 'Untitled'));
+    }
+};
+
+window.addYoutubeToQueue = function(index) {
+    const track = window._ytResults[index];
+    userQueue.push(track);
+    renderQueue();
+    if (playlist.length === 0 || (!audio.src && !document.getElementById('youtubePlayer').src)) {
+        nextTrack();
+    } else {
+        showToast('Added to Queue: ' + (track.title || 'Untitled'));
+    }
+};
+
+window.removeFromQueue = function(index) {
+    userQueue.splice(index, 1);
+    renderQueue();
+};
+
+function renderQueue() {
+    const list = document.getElementById('queueList');
+    if (!list) return;
+    if (userQueue.length === 0) {
+        list.innerHTML = '<div class="library-empty">Queue is empty.</div>';
+        return;
+    }
+    
+    list.innerHTML = '';
+    userQueue.forEach((track, i) => {
+        const row = document.createElement('div');
+        row.className = 'library-item song-row';
+        
+        const title = track.title || 'Untitled';
+        const artist = track.artist || 'Unknown';
+        
+        row.innerHTML = `
+            <div class="song-meta" style="flex: 1;">
+                <div class="song-title">${escapeHtml(title)}</div>
+                <div class="song-sub">${escapeHtml(artist)}</div>
+            </div>
+            <button class="btn btn-circle" style="width: 32px; height: 32px; background: rgba(255, 100, 100, 0.2);" onclick="event.stopPropagation(); removeFromQueue(${i})" title="Remove">
+                <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>
+            </button>
+        `;
+        list.appendChild(row);
+    });
+}
+
+function showToast(msg) {
+    let toast = document.getElementById('toastMsg');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toastMsg';
+        toast.style.cssText = 'position:fixed; bottom: 20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:10px 20px; border-radius:20px; z-index:9999; pointer-events:none; font-size:0.8rem; opacity:0; transition:opacity 0.3s;';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+}
+
         let currentIndex = 0;
         let currentTheme = 'vinyl';
 
@@ -674,7 +744,7 @@ const audio = document.getElementById('audioPlayer');
                             </div>
                             <div class="play-count-badge" title="Times played">${playsLabel}</div>
                             ${isOwner ? `<button class="song-delete-btn" onclick="deleteTrack('${song.id}', '${song.audio_url}', '${song.cover_url}')" title="Delete Track">🗑️</button>` : ''}
-                            <button class="btn btn-circle" style="width: 32px; height: 32px; margin-right: 8px; background: rgba(100,150,255,0.2); color: var(--text-main);" onclick="event.stopPropagation(); addToQueueFromData(\`${JSON.stringify(song).replace(/"/g, '&quot;')}\`);" title="Add to Queue">
+                            <button class="btn btn-circle" style="width: 32px; height: 32px; margin-right: 8px; background: rgba(100,150,255,0.2); color: var(--text-main);" onclick="event.stopPropagation(); addToQueueFromLibrary(${realIndex});" title="Add to Queue">
                                 <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                             </button>
                             <button class="song-play-btn" onclick="playFromLibrary(${realIndex})" title="Play">
@@ -1075,7 +1145,7 @@ async function searchYoutube() {
                         <div class="song-title">${escapeHtml(ytTrack.title)}</div>
                         <div class="song-sub">${escapeHtml(ytTrack.artist)}</div>
                     </div>
-                    <button class="btn btn-circle" style="width: 32px; height: 32px; margin-right: 8px; background: rgba(100,150,255,0.2); color: var(--text-main);" onclick="event.stopPropagation(); addToQueueFromData(\`${JSON.stringify(ytTrack).replace(/"/g, '&quot;')}\`);" title="Add to Queue">
+                    <button class="btn btn-circle" style="width: 32px; height: 32px; margin-right: 8px; background: rgba(100,150,255,0.2); color: var(--text-main);" onclick="event.stopPropagation(); addYoutubeToQueue(${index});" title="Add to Queue">
                         <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                     </button>
                     <button class="song-play-btn" onclick="playYoutubeResult(${index})" title="Play">
