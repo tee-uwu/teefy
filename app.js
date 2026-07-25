@@ -939,19 +939,35 @@ const audio = document.getElementById('audioPlayer');
 
         document.querySelectorAll('.js-progress-bg').forEach(bg => {
             bg.addEventListener('click', (e) => {
-                if (playlist.length === 0 || !audio.duration) return;
+                if (playlist.length === 0) return;
+                const duration = playlist[currentIndex]?.is_youtube ? (ytPlayer && ytPlayer.getDuration ? ytPlayer.getDuration() : 0) : audio.duration;
+                if (!duration) return;
                 const rect = bg.getBoundingClientRect();
                 const x = (e.clientX - rect.left) / rect.width;
-                audio.currentTime = x * audio.duration;
+                const seekTime = x * duration;
+                
+                if (playlist[currentIndex]?.is_youtube && ytReady) {
+                    ytPlayer.seekTo(seekTime, true);
+                } else {
+                    audio.currentTime = seekTime;
+                }
             });
             // Touch support for progress bar
             bg.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                if (playlist.length === 0 || !audio.duration) return;
+                if (playlist.length === 0) return;
+                const duration = playlist[currentIndex]?.is_youtube ? (ytPlayer && ytPlayer.getDuration ? ytPlayer.getDuration() : 0) : audio.duration;
+                if (!duration) return;
                 const touch = e.touches[0];
                 const rect = bg.getBoundingClientRect();
                 const x = (touch.clientX - rect.left) / rect.width;
-                audio.currentTime = Math.max(0, Math.min(1, x)) * audio.duration;
+                const seekTime = Math.max(0, Math.min(1, x)) * duration;
+                
+                if (playlist[currentIndex]?.is_youtube && ytReady) {
+                    ytPlayer.seekTo(seekTime, true);
+                } else {
+                    audio.currentTime = seekTime;
+                }
             }, { passive: false });
         });
 
@@ -1069,3 +1085,20 @@ function playYoutubeResult(index) {
     loadTrack(currentIndex);
     switchTab('player');
 }
+
+// YouTube Progress Poller
+setInterval(() => {
+    if (isPlaying && playlist[currentIndex]?.is_youtube && ytReady && ytPlayer && ytPlayer.getCurrentTime) {
+        const currentTime = ytPlayer.getCurrentTime();
+        const duration = ytPlayer.getDuration();
+        if (duration > 0) {
+            const ratio = currentTime / duration;
+            document.querySelectorAll('.js-progress-fill').forEach(bar => bar.style.width = `${ratio * 100}%`);
+            updateAllText('.js-time-current', formatTime(currentTime));
+            
+            if (currentTheme === 'vinyl') {
+                syncTonearmForPlayback(ratio);
+            }
+        }
+    }
+}, 250);
